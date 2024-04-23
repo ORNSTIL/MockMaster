@@ -1,6 +1,6 @@
-## Example Flows
+# Example Flows
 
-### Example Flow 1: Participating in a Custom Draft Room and Changing Your Team Name
+## Example Flow 1: Participating in a Custom Draft Room and Changing Your Team Name
 
 Scenario: Alex, a veteran fantasy football player, is gearing up for the annual "Gridiron Glory" private league. He wants to do a mock draft with his other private league members. Alex decides to create a high-stakes PPR draft room designed for the other experienced players in his league. Once Alex has created and joined the draft room, one of Alex’s friends, Cameron, joins Alex’s draft. After joining the draft room and seeing Alex’s team name, Cameron decides that he wants to change his name into something more unique and fun.
 
@@ -10,14 +10,14 @@ Scenario: Alex, a veteran fantasy football player, is gearing up for the annual 
 - Cameron calls PUT teams/65/ with a team name of “Cameron’s Commanders” to update his team name.
 
 
-### Example Flow 2: Accessing Player Statistics During Draft
+## Example Flow 2: Accessing Player Statistics During Draft
 
 Scenario: Samantha, a fantasy football analyst and blogger known for her strategic insights, is participating in a live draft broadcast. To provide her followers with real-time advice, she accesses detailed statistics for a sleeper pick that could turn the tide of any fantasy league.
 
 - Samantha calls GET /players/ to get a list of all players available in the draft. This includes a player named “Justin Fields” with a player id of 6752, who Samantha believes is a sleeper in the draft.
 - Samantha calls GET /players/6752/ to retrieve all of the statistics and history for the player named “Justin Fields”. She can now see that the player named “Justin Fields” started 13 games and threw 16 touchdowns last season.
 
-### Example Flow 3: Automatic Drafting for Distracted Users
+## Example Flow 3: Automatic Drafting for Distracted Users
 
 Scenario: Jordan, a busy software developer and fantasy football enthusiast, is juggling a major project launch with his mock draft night. Concerned he might miss his pick, he sets up an auto-draft feature to ensure he doesn’t lose out on securing a top running back for his team.
 
