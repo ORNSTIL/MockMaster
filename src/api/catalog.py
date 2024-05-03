@@ -1,4 +1,6 @@
 from fastapi import APIRouter
+import sqlalchemy
+from src import database as db
 
 router = APIRouter()
 
@@ -8,6 +10,12 @@ def get_catalog():
     """
     Each unique item combination must have only a single price.
     """
+
+    with db.engine.begin() as connection:
+        result = connection.execute(sqlalchemy.text("SELECT * FROM test_table"))
+        
+    for row in result:
+        print(row)
 
     return [
             {
