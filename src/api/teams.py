@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Path
 from pydantic import BaseModel
 from src import database as db
 import sqlalchemy
+from src.api import auth
 
 router = APIRouter(
     prefix="/teams",
@@ -27,4 +28,3 @@ def update_team_name(team_id: int, update_request: TeamUpdateRequest):
             raise HTTPException(status_code=404, detail="Team not found")
 
     return {"success": True, "team_id": updated_team_id}
-
