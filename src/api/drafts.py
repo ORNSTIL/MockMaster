@@ -55,7 +55,6 @@ def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
 
     return {"team_id": team_id}
 
-
 @router.post("/")
 def post_create_draftroom(draft_request: DraftRequest):
     """ """
@@ -67,10 +66,10 @@ def post_create_draftroom(draft_request: DraftRequest):
                                                     """),
                                                     {"name": draft_request.draft_name,
                                                      "type": draft_request.draft_type,
-                                                    "rsize": draft_request.draft_length,
+                                                    "rsize": draft_request.roster_size,
                                                     "dsize": draft_request.draft_size,
-                                                    "dlength": draft_request.flex_spots,
-                                                    "flex": draft_request.roster_size}).scalar_one()
+                                                    "dlength": draft_request.draft_length,
+                                                    "flex": draft_request.flex_spots}).scalar_one()
         pos_reqs = []
         for pos in draft_request.roster_positions:
             pos_reqs.append({"id": id, "pos": pos.position, "min": pos.min_num, "max": pos.max_num})
@@ -81,7 +80,7 @@ def post_create_draftroom(draft_request: DraftRequest):
         connection.execute(sqlalchemy.text("""INSERT INTO teams (draft_id, team_name, user_name)
                                             VALUES (:id, :team, :user)"""),
                                             {"id": id, "team": draft_request.team_name, "user": draft_request.user_name})
-        
+
     print(f"Draft ID : {id}")
 
     return {"draft_id" : id}
@@ -139,20 +138,3 @@ def get_active_draft_rooms():
         ]
 
     return draft_rooms_list
-
-
-@router.post("/plan")
-def get_bottle_plan():
-    """
-    Go from barrel to bottle.
-    """
-
-    return [
-            {
-                "potion_type": [100, 0, 0, 0],
-                "quantity": 5,
-            }
-        ]
-
-if __name__ == "__main__":
-    print(get_bottle_plan())
