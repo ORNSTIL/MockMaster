@@ -138,3 +138,31 @@ def get_active_draft_rooms():
         ]
 
     return draft_rooms_list
+
+@router.put("/{draft_id}/start")
+def start_draft(draft_id: int):
+    with db.engine.begin() as connection:
+        result = connection.execute(sqlalchemy.text("""
+            UPDATE drafts SET draft_status = 'active' 
+            WHERE draft_id = :draft_id AND draft_status != 'active'
+            RETURNING draft_id
+        """), {'draft_id': draft_id})
+
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Draft not found or already active")
+
+    return {"success": True}
+
+@router.put("/{draft_id}/pause")
+def pause_draft(draft_id: int):
+    with db.engine.begin() as connection:
+        result = connection.execute(sqlalchemy.text("""
+            UPDATE drafts SET draft_status = 'paused' 
+            WHERE draft_id = :draft_id AND draft_status = 'active'
+            RETURNING draft_id
+        """), {'draft_id': draft_id})
+
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Draft not found or not active")
+
+    return {"success": True}
