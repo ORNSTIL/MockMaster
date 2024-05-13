@@ -180,6 +180,24 @@ def pause_draft(draft_id: int):
     # return status
     return "OK"
 
+@router.put("/{draft_id}/resume")
+def resume_draft(draft_id: int):
+    with db.engine.begin() as connection:
+        # Update draft status to 'active' only if it is currently 'paused'
+        result = connection.execute(sqlalchemy.text("""
+            UPDATE drafts 
+            SET draft_status = 'active' 
+            WHERE draft_id = :draft_id AND draft_status = 'paused'
+            RETURNING draft_id
+        """), {'draft_id': draft_id})
+
+        # If no draft is found or the draft is not in a paused state
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Draft not found or not in a paused state")
+
+    return {"success": True, "message": "Draft resumed successfully"}
+
+
 @router.put("/{draft_id}/end")
 def end_draft(draft_id: int):
     with db.engine.begin() as connection:
