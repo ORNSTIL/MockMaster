@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from src.api import auth
 import sqlalchemy
 from src import database as db
+import random
 
 router = APIRouter(
     prefix="/drafts",
@@ -122,19 +123,45 @@ def get_draft_rooms():
 @router.put("/{draft_id}/start")
 def start_draft(draft_id: int):
     with db.engine.begin() as connection:
-        # query database
-        result = connection.execute(sqlalchemy.text("""
-            UPDATE drafts SET draft_status = 'active' 
-            WHERE draft_id = :draft_id AND draft_status != 'active'
-            RETURNING draft_id
+        # Ensure the draft is in 'pending' state and count the number of teams
+        draft_info = connection.execute(sqlalchemy.text("""
+            SELECT draft_status, COUNT(team_id) as team_count
+            FROM drafts
+            LEFT JOIN teams ON drafts.draft_id = teams.draft_id
+            WHERE drafts.draft_id = :draft_id
+            GROUP BY drafts.draft_status
+        """), {'draft_id': draft_id}).mappings().fetchone()
+
+        if not draft_info or draft_info['draft_status'] != 'pending':
+            raise HTTPException(status_code=404, detail="Draft not found or not in a pending state")
+
+        if draft_info['team_count'] == 0:
+            raise HTTPException(status_code=400, detail="Cannot start a draft with no teams")
+
+        # Generate random draft positions
+        draft_positions = list(range(1, draft_info['team_count'] + 1))
+        random.shuffle(draft_positions)
+
+        # Fetch team IDs to update their draft positions
+        teams = connection.execute(sqlalchemy.text("""
+            SELECT team_id FROM teams WHERE draft_id = :draft_id
+        """), {'draft_id': draft_id}).mappings().fetchall()
+
+        # Assign random draft positions to each team
+        for team, position in zip(teams, draft_positions):
+            connection.execute(sqlalchemy.text("""
+                UPDATE teams SET draft_position = :position
+                WHERE team_id = :team_id
+            """), {'position': position, 'team_id': team['team_id']})
+
+        # Update the draft status to 'active'
+        connection.execute(sqlalchemy.text("""
+            UPDATE drafts SET draft_status = 'active'
+            WHERE draft_id = :draft_id
         """), {'draft_id': draft_id})
 
-        # if there is no corresponding draft
-        if result.rowcount == 0:
-            raise HTTPException(status_code=404, detail="Draft not found or already active")
+    return {"success": True, "message": "Draft started and draft positions assigned randomly"}
 
-    # return status
-    return "OK"
 
 @router.put("/{draft_id}/pause")
 def pause_draft(draft_id: int):
