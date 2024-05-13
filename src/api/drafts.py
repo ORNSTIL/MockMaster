@@ -109,7 +109,7 @@ def get_draft_rooms():
              "draft_size": room['draft_size'],
              "roster_size": room['roster_size'],
              "draft_length": room['draft_length'],
-             "flex_spots": room['flex_spots']}  # assuming roster_positions is stored in a suitable format
+             "flex_spots": room['flex_spots']}
             for room in draft_rooms
         ]
 
@@ -152,6 +152,20 @@ def pause_draft(draft_id: int):
 
     # return status
     return "OK"
+
+@router.put("/{draft_id}/end")
+def end_draft(draft_id: int):
+    with db.engine.begin() as connection:
+        result = connection.execute(sqlalchemy.text("""
+            UPDATE drafts SET draft_status = 'ended' 
+            WHERE draft_id = :draft_id AND draft_status = 'active'
+            RETURNING draft_id
+        """), {'draft_id': draft_id})
+
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Draft not found or not in an endable state")
+
+    return {"success": True}
 
 # For create_draft_room testing
 # {
