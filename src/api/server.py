@@ -1,7 +1,7 @@
 from fastapi import FastAPI, exceptions
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
-from src.api import teams, catalog, barrels, admin, drafts, info, inventory
+from src.api import catalog, admin, drafts, info, inventory, players, teams
 import json
 import logging
 import sys
@@ -36,7 +36,7 @@ app.include_router(inventory.router)
 app.include_router(teams.router)
 app.include_router(catalog.router)
 app.include_router(drafts.router)
-app.include_router(barrels.router)
+app.include_router(players.router)
 app.include_router(admin.router)
 app.include_router(info.router)
 
