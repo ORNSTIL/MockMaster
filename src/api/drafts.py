@@ -102,7 +102,8 @@ def get_draft_rooms():
     with db.engine.begin() as connection:
         # query database
         draft_rooms = connection.execute(sqlalchemy.text("""SELECT draft_id, draft_name, draft_type, draft_size, roster_size, draft_length, flex_spots
-                                                            FROM drafts""")).mappings().fetchall()
+                                                            FROM drafts
+                                                            WHERE draft_status = 'pending'""")).mappings().fetchall()
         
         # transform result into desired format
         draft_rooms_list = [
