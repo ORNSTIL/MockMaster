@@ -34,31 +34,33 @@ class JoinDraftRequest(BaseModel):
 @router.post("/{draft_id}/join")
 def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
     with db.engine.begin() as connection:
-        # check if draft exists and is not full
-        draft = connection.execute(sqlalchemy.text("""SELECT draft_size FROM drafts WHERE draft_id = :id"""),
-                                   {"id": draft_id}).mappings().fetchone()
+        # Check if draft exists, is not full, and is in a 'pending' status
+        draft = connection.execute(sqlalchemy.text("""
+            SELECT draft_size, draft_status FROM drafts 
+            WHERE draft_id = :id AND draft_status = 'pending'
+        """), {"id": draft_id}).mappings().fetchone()
+
         if not draft:
-            raise HTTPException(status_code=404, detail="Draft not found")
+            raise HTTPException(status_code=404, detail="Draft not found or not in a pending state")
 
-        # count existing teams to ensure the draft is not full
-        team_count = connection.execute(sqlalchemy.text("""SELECT COUNT(*) FROM teams WHERE draft_id = :id"""),
-                                        {"id": draft_id}).scalar_one()
+        # Count existing teams to ensure the draft is not full
+        team_count = connection.execute(sqlalchemy.text("""
+            SELECT COUNT(*) FROM teams WHERE draft_id = :id
+        """), {"id": draft_id}).scalar_one()
 
-        # check if there are more teams than allowed
         if team_count >= draft['draft_size']:
             raise HTTPException(status_code=400, detail="Draft is already full")
 
-        # update database
-        team_id = connection.execute(sqlalchemy.text("""INSERT INTO teams (draft_id, team_name, user_name)
-                                                        VALUES (:id, :team, :user)
-                                                        RETURNING team_id"""),
-                                     {"id": draft_id, "team": join_request.team_name, "user": join_request.user_name}).scalar_one()
+        # Insert the new team into the draft
+        team_id = connection.execute(sqlalchemy.text("""
+            INSERT INTO teams (draft_id, team_name, user_name)
+            VALUES (:id, :team, :user)
+            RETURNING team_id
+        """), {"id": draft_id, "team": join_request.team_name, "user": join_request.user_name}).scalar_one()
 
-    # print team_id for testing
-    print(f"Team ID : {team_id}")
+        print(f"Team ID : {team_id}")
 
-    # return team_id
-    return {"team_id": team_id}
+        return {"team_id": team_id}
 
 @router.post("/")
 def create_draft_room(draft_request: DraftRequest):
