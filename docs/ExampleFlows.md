@@ -17,15 +17,12 @@ Scenario: Samantha, a fantasy football analyst and blogger known for her strateg
 - Samantha calls GET /players/ to get a list of all players available in the draft. This includes a player named “Justin Fields” with a player id of 6752, who Samantha believes is a sleeper in the draft.
 - Samantha calls GET /players/6752/ to retrieve all of the statistics and history for the player named “Justin Fields”. She can now see that the player named “Justin Fields” started 13 games and threw 16 touchdowns last season.
 
-## Example Flow 3: Automatic Drafting for Distracted Users
 
-Scenario: Jordan, a busy software developer and fantasy football enthusiast, is juggling a major project launch with his mock draft night. Concerned he might miss his pick, he sets up an auto-draft feature to ensure he doesn’t lose out on securing a top running back for his team.
+## Example Flow 3: Starting, Pausing, Resuming, and Ending a Draft
 
-- Jordan calls POST /players/{player_id}/enqueue to add a player to his queue. This includes a team id of “Jordan’s Jesters” to ensure the player is queued to the correct team.
-- Jordan misses his draft turn when the draft clock expires.
-- The system calls POST /players/{player_id}/draft to draft the first player on Jordan’s queue who is still available. This again includes a team id of “Jordan’s Jesters”, and the player is drafted to Jordan’s team.
+Scenario: Tyler, a fantasy football guru, has created a draft room. Once 7 other teams join his draft, he starts the draft and every team is assigned their draft pick. However, Tyler realizes that he left his stove on as the draft is beginning, so he quickly pauses the draft. After turning the stove off, Tyler resumes the draft. Once every team has made their selections, the draft is ended.
 
-Note that a player being available must satisfy 2 conditions:
-- The player has not already been drafted
-- Drafting the player does not violate the number of positions already filled on the user’s team
-
+- Tyler calls PUT /drafts/{draft_id}/start to start the draft that he created. This automatically assigns each team in the draft a random number from 1 to the number of teams in the draft (with no duplicates). This number represents that team’s draft pick.
+- Tyler calls PUT /drafts/{draft_id}/pause to pause the draft. At the current moment, nobody can make a pick and the draft timer for the current pick is halted.
+- Tyler calls PUT /drafts/{draft_id}/resume once he has turned off the stove to resume the draft.
+- The draft concludes with a call to PUT /drafts/{draft_id}/end.
