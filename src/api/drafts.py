@@ -217,8 +217,8 @@ def end_draft(draft_id: int):
 
 # For create_draft_room testing
 # {
-#   "draft_type": "Test 3: Full First Workflow",
-#   "draft_name": "The Testers",
+#   "draft_type": "PPR",
+#   "draft_name": "Example Draft",
 #   "draft_size": 10,
 #   "draft_length": 60,
 #   "roster_positions": [
@@ -245,6 +245,6 @@ def end_draft(draft_id: int):
 #   ],
 #   "flex_spots": 2,
 #   "roster_size": 14,
-#   "team_name": "The Coders",
-#   "user_name": "elcoder00"
+#   "team_name": "Example Team",
+#   "user_name": "exampleteam1"
 # }

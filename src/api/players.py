@@ -203,8 +203,20 @@ def draft_player(player_id: str, request: DraftPlayerRequest):
         # update database with draft selection
         try:
             connection.execute(sqlalchemy.text("""
+                WITH previousPicks AS (
+                SELECT COUNT(*) AS picks
+                FROM selections
+                JOIN teams ON selections.team_id = teams.team_id
+                JOIN drafts ON teams.draft_id = drafts.draft_id
+                WHERE teams.draft_id = (
+                    SELECT teams.draft_id
+                    FROM teams
+                    WHERE teams.team_id = :team_id
+                )
+                )
                 INSERT INTO selections (team_id, player_id, when_selected)
-                VALUES (:team_id, :player_id, EXTRACT(EPOCH FROM NOW()))"""), 
+                SELECT :team_id, :player_id, picks+1
+                FROM previousPicks;"""), 
                 {'team_id': request.team_id, 'player_id': player_id})
 
             return "OK"
