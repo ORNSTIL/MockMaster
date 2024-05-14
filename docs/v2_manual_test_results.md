@@ -1,6 +1,6 @@
 # Example workflow
 
-Example Flow 3: Accessing Player Statistics During Draft
+Example Flow 2: Accessing Player Statistics During Draft
 
 Scenario: Samantha, a fantasy football analyst and blogger known for her strategic insights, is participating in a live draft broadcast. To provide her followers with real-time advice, she accesses detailed statistics for a sleeper pick that could turn the tide of any fantasy league.
 
