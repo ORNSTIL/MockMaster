@@ -1,6 +1,6 @@
-# Example workflow
+# Example Flow 2: Accessing Player Statistics During Draft
 
-Example Flow 2: Accessing Player Statistics During Draft
+## Description
 
 Scenario: Samantha, a fantasy football analyst and blogger known for her strategic insights, is participating in a live draft broadcast. To provide her followers with real-time advice, she accesses detailed statistics for a sleeper pick that could turn the tide of any fantasy league.
 
@@ -9,7 +9,7 @@ Samantha calls GET /players/{player_id} to retrieve all of the statistics and hi
 Samantha, who has a team with an ID of 18, calls POST /players/{player_id}/draft to draft DK Metcalf to her lineup.
 
 
-# Testing results
+## Testing results
 
 Samantha calls GET /search_players/ with the optional arguments of WR for position and SEA for team to get a list of last year's highest scoring WRs on the Seattle Seahawks. This includes a player named “DK Metcalf” with a player id of “MetcDK00”, who Samantha believes is a sleeper in the draft.
 
@@ -163,9 +163,9 @@ curl -X 'POST' \
 "OK"
 
 
-# Example workflow
+# Example Flow 3: Starting, Pausing, Resuming, and Ending a Draft
 
-Example Flow 3: Starting, Pausing, Resuming, and Ending a Draft
+## Description
 
 Scenario: Tyler, a fantasy football guru, has created a draft room. Once 7 other teams join his draft, he starts the draft and every team is assigned their draft pick. However, Tyler realizes that he left his stove on as the draft is beginning, so he quickly pauses the draft. After turning the stove off, Tyler resumes the draft. Once every team has made their selections, the draft is ended.
 
@@ -174,8 +174,7 @@ Tyler calls PUT /drafts/{draft_id}/pause to pause the draft. At the current mome
 Tyler calls PUT /drafts/{draft_id}/resume once he has turned off the stove to resume the draft.
 The draft concludes with a call to PUT /drafts/{draft_id}/end.
 
-
-# Testing results
+## Testing results
 
 Tyler calls PUT /drafts/11/start to start the draft that he created.
 
