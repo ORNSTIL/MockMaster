@@ -29,3 +29,21 @@ def update_team_name(team_id: int, update_request: TeamUpdateRequest):
 
     # exit status
     return "OK"
+
+
+@router.get("/{team_id}")
+def get_team(team_id: int):
+    with db.engine.begin() as connection:
+        result = connection.execute(sqlalchemy.text(""" SELECT when_selected, position, player_name 
+                                                        FROM selections
+                                                        JOIN players on selections.player_id = players.player_id
+                                                        JOIN stats on players.player_id = stats.player_id
+                                                        WHERE selections.team_id = :team_id
+                                                        ORDER BY when_selected asc 
+                                                       """),
+                                                    {"team_id": team_id})
+    team = []
+    for row in result:
+        team.append({"selection": row.when_selected, "position": row.position, "player": row.player_name})
+        
+    return team
