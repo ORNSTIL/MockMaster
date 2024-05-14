@@ -2,21 +2,32 @@
 
 ## Drafting
 
-### Get Players - /players/ (GET) - Retrieves the catalog of all players.
+### Search Players - /players/search/ (GET)
+Searches for players based on specified query parameters.
+
+Query Parameters:
+
+- `player_name` (optional): The name of the player.
+- `position` (optional): The position of the player.
+- `team` (optional): The team of the player.
+- `search_page` (optional): The page number of the search results.
+- `sort_col` (optional): The column to sort the results by. Possible values: `player_name`, `position`, `team`, `age`, `standard_fantasy_points`, `ppr_fantasy_points`. Default: `ppr_fantasy_points`.
+- `sort_order` (optional): The sort order of the results. Possible values: `asc` (ascending), `desc` (descending). Default: `desc`.
 
 Response:
-~~~
-[
-{
-	“player_id”: “string”,
-	“player_name”: “string”,
-	“player_position”: “string”,
-	“player_team”: “string”,
-	“player_age”: “int”,
-	… // other field
-}
-]
-~~~
+
+The API returns a JSON object with the following structure:
+
+- `previous`: A string that represents the link to the previous page of results. If there is no previous page, this value is an empty string.
+- `next`: A string that represents the link to the next page of results. If there is no next page, this value is an empty string.
+- `results`: An array of objects, each representing a player. Each player object has the following properties:
+    - `player_id`: An string that represents the unique identifier of the player.
+    - `player_name`: A string that represents the name of the player.
+    - `position`: A string that represents the position of the player.
+    - `team`: A string that represents the team of the player.
+    - `age`: An integer value that represents the age of the player.
+    - `standard_fantasy_points`: An integer value that represents the amount of standard fantasy points the player accrued in the season.
+    - `ppr_fantasy_points`: An integer value that represents the amount of ppr fantasy points the player accrued in the season.
 
 ### Get Player Statistics - /players/{player_id}/ (GET) - Retrieves detailed statistics for a specified player.
 
@@ -45,62 +56,6 @@ Response:
 }
 ~~~
 
-### Add Player to Queue - /players/{player_id}/enqueue (POST) - Add a player to a team’s draft queue.
-
-Request:
-~~~
-{
- 	"team_id": "string"
-}
-~~~
-
-Response:
-~~~
-{
-	"success”: “boolean”
-}
-~~~
-
-### Remove Player from Queue - /players/{player_id}/dequeue (DELETE) - Remove a player from a team’s draft queue.
-
-Request:
-~~~
-{
-	"team_id": "string"
-}
-~~~
-
-Response:
-~~~
-{
-	"success”: “boolean”
-}
-~~~
-
-### Get Queue- /teams/{team_id}/queue (GET) - Retrieves the draft queue for a team.
-
-Response:
-~~~
-[
-	{
-		“player_name”: “string”,
-		…
-	}
-]
-~~~
-
-### Get Players on Team - /teams/{team_id}/players (GET) - Retrieves all drafted players for a specified team.
-
-Response:
-~~~
-[
-{
-	“player_name”: “string”,
-	…
-}
-]
-~~~
-
 ### Change Team Name - /teams/{team_id}/ (PUT) - Change a specified team’s name.
 
 Request:
@@ -124,16 +79,15 @@ Response:
 Request:
 ~~~
 {
-	"experience_level": "string",
-	"draft_type": "string", // e.g., PPR, .5 PPR, non-PPR
-	"visibility": "string", // public or private
-	"settings": {
-		"draft_length": "integer", // e.g. time to select a player
-		"roster_positions": "array",
-		“roster_size”: “integer”,   // e.g. number of players 
-		“draft_size”: “integer”   // e.g. number of team
-		}
-	“team_name”: “string” // team name for the user creating the draft
+	"draft_type": "string",
+	"draft_name": "string",
+	"draft_size": "int",
+	"draft_length": "int",
+	"roster_positions": "list[RosterPosition]" #Format: [position_name, min, max]
+	"flex_spots": "int",
+	"roster_size": "int",
+	"team_name": "string",
+	"user_name": "string"
 }
 ~~~
 
@@ -149,7 +103,8 @@ Response:
 Request:
 ~~~
 {
-	"team_name": "string"
+	"team_name": "string",
+	"user_name": "string"
 }
 ~~~
 
@@ -160,7 +115,7 @@ Response:
 }
 ~~~
 
-### Get Active Draft Rooms - /drafts/ (GET) - Returns list of all public drafts that have been created but have not been started.
+### Get Draft Rooms - /drafts/ (GET) - Returns list of all public drafts that have been created but have not been started.
 
 Response:
 ~~~
@@ -168,16 +123,16 @@ Response:
 	{	
 		“draft_id”: “string”
 		“draft_name”: “string”,
-		“experience_level”: “string”,
 		“draft_type”: “string”,
 		“draft_size”: “integer”,
 		“roster_size”: “integer”,
-		“roster_positions”: “array”
+		“draft_length”: “integer”,
+		“flex_spots”: “integer”
 	}
 ]
 ~~~
 
-### Start Draft - /drafts/{draft_id}/start (PUT) - start a draft
+### Start Draft - /drafts/{draft_id}/start (PUT) - start a pending draft
 
 Response:
 ~~~
@@ -186,7 +141,25 @@ Response:
 }
 ~~~
 
-### Pause Draft - /drafts/{dratf_id}/pause (PUT) - pause a draft
+### Pause Draft - /drafts/{dratf_id}/pause (PUT) - pause a started draft
+
+Response:
+~~~
+{
+	“success”: “boolean”
+}
+~~~
+
+### Resume Draft - /drafts/{dratf_id}/resume (PUT) - resume a paused draft
+
+Response:
+~~~
+{
+	“success”: “boolean”
+}
+~~~
+
+### End Draft - /drafts/{dratf_id}/end (PUT) - end a started or resumed draft
 
 Response:
 ~~~
