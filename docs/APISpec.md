@@ -72,6 +72,19 @@ Response:
 }
 ~~~
 
+### Get Team - /teams/{team_id}/ (GET) - Get all selections for a team.
+
+Response:
+~~~
+{
+	"team”: {
+		"selection": "int",
+		"position": "string",
+		"player": "string"
+	}
+}
+~~~
+
 ## Joining/Creating Drafts
 
 ### Create Draft Room - /drafts/ (POST) - Creates a new draft room, joins the draft room, and creates a team for that user
