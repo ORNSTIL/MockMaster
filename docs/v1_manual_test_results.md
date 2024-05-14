@@ -1,6 +1,6 @@
-# Example workflow
+# Example Flow 1: Participating in a Custom Draft Room and Changing Your Team Name
 
-Example Flow 1: Participating in a Custom Draft Room and Changing Your Team Name
+## Description
 
 Scenario: Alex, a veteran fantasy football player, is gearing up for the annual "Fantastic Footies" league. He wants to do a mock draft with his other league members. Alex decides to create a high-stakes PPR draft room designed for the other players in his league. Once Alex has created and joined the draft room, one of Alex’s friends, Cameron, joins Alex’s draft. After joining the draft room and seeing Alex’s team name, Cameron decides that he wants to change his name into something more unique and fun.
 
@@ -10,7 +10,7 @@ Cameron calls POST/drafts/8/join with a team name of “Cameron’s Team” to j
 Cameron calls PUT teams/8/ with a team name of “Cameron’s Commanders” to update his team name.
 
 
-# Testing results
+## Testing results
 
 Alex, who has the username “aball17”, calls POST /draft/ with a PPR draft type, draft size of 12 total teams, team roster sizes of 10 players per team, 6 flex spots per team, a team name of “Alex’s Avengers”, and a draft name of “Fantastic Footies”. Alex also calls this endpoint with settings specifying a draft length of 1 minute per pick, roster position limitations of 1-3 QBs, 2-6 RBs, 2-6 WRs, and 1-3 TEs. This returns a new draft with an ID of 8.
 
