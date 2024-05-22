@@ -66,16 +66,17 @@ def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
 def create_draft_room(draft_request: DraftRequest):
     with db.engine.begin() as connection:
         # update database
-        id = connection.execute(sqlalchemy.text("""INSERT INTO drafts (draft_name, draft_type, roster_size, draft_size, draft_length, flex_spots)
-                                                    VALUES (:name, :type, :rsize, :dsize, :dlength, :flex)
-                                                    RETURNING draft_id
-                                                    """),
-                                                    {"name": draft_request.draft_name,
+        id_sql = sqlalchemy.text("""INSERT INTO drafts (draft_name, draft_type, roster_size, draft_size, draft_length, flex_spots)
+                                                VALUES (:name, :type, :rsize, :dsize, :dlength, :flex)
+                                                RETURNING draft_id
+                                                """)
+        id_options = {"name": draft_request.draft_name,
                                                      "type": draft_request.draft_type,
                                                     "rsize": draft_request.roster_size,
                                                     "dsize": draft_request.draft_size,
                                                     "dlength": draft_request.draft_length,
-                                                    "flex": draft_request.flex_spots}).scalar_one()
+                                                    "flex": draft_request.flex_spots}
+        id = connection.execute(id_sql, id_options).scalar_one()
         
         # create roster positions dictionary
         pos_reqs = []
