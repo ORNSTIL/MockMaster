@@ -28,53 +28,62 @@ def search_players(
 ):
     offset = (int(search_page)-1)*10 if search_page else 0
 
-    order_clause = f"{sort_col} {sort_order.upper()}"
+    # Ensure sort_col is prefixed with the appropriate table name if needed
+    if sort_col in ["player_name", "player_id"]:  # Assuming these are from the 'players' table
+        order_clause = f"players.{sort_col} {sort_order.upper()}"
+    else:  # Assuming other columns are from the 'stats' table
+        order_clause = f"stats.{sort_col} {sort_order.upper()}"
+
     where_clauses = []
     if player_name:
-        where_clauses.append(f"player_name ILIKE '%{player_name}%'")
+        where_clauses.append("players.player_name ILIKE :player_name")
     if position:
-        where_clauses.append(f"position ILIKE '%{position}%'")
+        where_clauses.append("stats.position ILIKE :position")
     if team:
-        where_clauses.append(f"team ILIKE '%{team}%'")
+        where_clauses.append("stats.team ILIKE :team")
 
     where_statement = " AND ".join(where_clauses) if where_clauses else "1=1"
     
     sql = f"""
-        SELECT player_id, player_name, position, team, age, fantasy_points_standard_10, fantasy_points_ppr_10
+        SELECT players.player_id, players.player_name, stats.position, stats.team, stats.age, 
+               stats.fantasy_points_standard_10, stats.fantasy_points_ppr_10
         FROM players
         JOIN stats ON players.player_id = stats.player_id
         WHERE {where_statement}
         ORDER BY {order_clause}
         LIMIT 11 OFFSET :offset
     """
+    
+    params = {
+        'offset': offset,
+        'player_name': f"%{player_name}%" if player_name else None,
+        'position': f"%{position}%" if position else None,
+        'team': f"%{team}%" if team else None
+    }
+
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text(sql), {'offset': offset}).fetchall()
+        result = connection.execute(sqlalchemy.text(sql), params).fetchall()
         json = []
-        # set next page
+        # Handle pagination
         if len(result) > 10:
-            result = result[0:10]
-            if search_page == "":
-                next_token = "2"
-            else:
-                next_token = str(int(search_page)+1)
+            result = result[:10]
+            next_token = str(int(search_page) + 1 if search_page else 2)
         else:
             next_token = ""
+        # Build response
         for row in result:
-            json.append(
-                {
-                    "player_id": row.player_id,
-                    "player_name": row.player_name,
-                    "position": row.position,
-                    "team": row.team,
-                    "age": row.age,
-                    "standard_fantasy_points": row.fantasy_points_standard_10/10,
-                    "ppr_fantasy_points": row.fantasy_points_ppr_10/10
-                }
-            )
+            json.append({
+                "player_id": row.player_id,
+                "player_name": row.player_name,
+                "position": row.position,
+                "team": row.team,
+                "age": row.age,
+                "standard_fantasy_points": row.fantasy_points_standard_10 / 10,
+                "ppr_fantasy_points": row.fantasy_points_ppr_10 / 10
+            })
 
-    # return search object
     return {
-        "previous": prev_token,
+        "previous": search_page if int(search_page or 0) > 1 else "",
         "next": next_token,
         "results": json
     }
