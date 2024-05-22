@@ -48,3 +48,4 @@ def get_team(team_id: int):
         team.append({"selection": row.when_selected, "position": row.position, "player": row.player_name})
         
     return team
+
