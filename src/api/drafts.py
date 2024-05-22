@@ -135,7 +135,7 @@ def start_draft(draft_id: int):
             GROUP BY drafts.draft_status
         """), {'draft_id': draft_id}).mappings().fetchone()
 
-        if not draft_info or draft_info['draft_status'] != 'pending':
+        if (not draft_info) or (draft_info['draft_status'] != 'pending'):
             raise HTTPException(status_code=404, detail="Draft not found or not in a pending state")
 
         if draft_info['team_count'] == 0:
