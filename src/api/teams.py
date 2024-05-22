@@ -15,6 +15,9 @@ class TeamUpdateRequest(BaseModel):
 
 @router.put("/{team_id}/")
 def update_team_name(team_id: int, update_request: TeamUpdateRequest):
+    """
+    Updates the name of a team based on the team_id.
+    """
     with db.engine.begin() as connection:
         updated_team_id = connection.execute(sqlalchemy.text("""UPDATE teams
                                                        SET team_name = :team_name
@@ -28,6 +31,9 @@ def update_team_name(team_id: int, update_request: TeamUpdateRequest):
 
 @router.get("/{team_id}")
 def get_team(team_id: int):
+    """
+    Retrieves detailed information about a team's selections, including the draft positions, player positions, and names of players selected.
+    """
     with db.engine.begin() as connection:
         team_info = connection.execute(sqlalchemy.text(""" SELECT when_selected, position, player_name 
                                                         FROM selections
