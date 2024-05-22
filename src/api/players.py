@@ -17,105 +17,38 @@ class PlayerStatsResponse(BaseModel):
 class DraftPlayerRequest(BaseModel):
     team_id: int
 
-class search_sort_options(str, Enum):
-    player_name = "player_name"
-    position = "position"
-    team = "team"
-    age = "age"
-    standard_fantasy_points = "standard_fantasy_points"
-    ppr_fantasy_points = "ppr_fantasy_points"
-
-class search_sort_order(str, Enum):
-    asc = "asc"
-    desc = "desc" 
-
 @router.get("/search/")
 def search_players(
     player_name: str = "",
     position: str = "",
     team: str = "",
     search_page: str = "",
-    sort_col: search_sort_options = search_sort_options.ppr_fantasy_points,
-    sort_order: search_sort_order = search_sort_order.desc
+    sort_col: str = "ppr_fantasy_points",
+    sort_order: str = "desc"
 ):
+    offset = (int(search_page)-1)*10 if search_page else 0
+
+    order_clause = f"{sort_col} {sort_order.upper()}"
+    where_clauses = []
+    if player_name:
+        where_clauses.append(f"player_name ILIKE '%{player_name}%'")
+    if position:
+        where_clauses.append(f"position ILIKE '%{position}%'")
+    if team:
+        where_clauses.append(f"team ILIKE '%{team}%'")
+
+    where_statement = " AND ".join(where_clauses) if where_clauses else "1=1"
     
-    # set which page of results to get
-    if search_page == "":
-        offset = 0
-        prev_token = ""
-    else:
-        offset = (int(search_page)-1)*10
-        if offset == 0:
-            prev_token = ""
-        else:
-            prev_token = str(int(search_page)-1)
-
-    # set sort order
-    if sort_col is search_sort_options.player_name:
-        if sort_order is search_sort_order.asc:
-            order_by = db.players.c.player_name
-        else:
-            order_by = sqlalchemy.desc(db.players.c.player_name)
-    elif sort_col is search_sort_options.position:
-        if sort_order is search_sort_order.asc:
-            order_by = db.stats.c.position
-        else:
-            order_by = sqlalchemy.desc(db.stats.c.position)
-    elif sort_col is search_sort_options.team:
-        if sort_order is search_sort_order.asc:
-            order_by = db.stats.c.team
-        else:
-            order_by = sqlalchemy.desc(db.stats.c.team)
-    elif sort_col is search_sort_options.age:
-        if sort_order is search_sort_order.asc:
-            order_by = db.stats.c.age
-        else:
-            order_by = sqlalchemy.desc(db.stats.c.age)
-    elif sort_col is search_sort_options.standard_fantasy_points:
-        if sort_order is search_sort_order.asc:
-            order_by = db.stats.c.fantasy_points_standard_10
-        else:
-            order_by = sqlalchemy.desc(db.stats.c.fantasy_points_standard_10)
-    elif sort_col is search_sort_options.ppr_fantasy_points:
-        if sort_order is search_sort_order.asc:
-            order_by = db.stats.c.fantasy_points_ppr_10
-        else:
-            order_by = sqlalchemy.desc(db.stats.c.fantasy_points_ppr_10)
-    else:
-        assert False
-
-    # set sqlalchemy statement
-    stmt = (
-        sqlalchemy
-        .select(
-            db.players.c.player_id,
-            db.players.c.player_name,
-            db.stats.c.position,
-            db.stats.c.team,
-            db.stats.c.age,
-            db.stats.c.fantasy_points_standard_10,
-            db.stats.c.fantasy_points_ppr_10
-        )
-        .select_from(
-            db.players
-            .join(db.stats, db.players.c.player_id == db.stats.c.player_id)
-        )
-        .limit(11)
-        .offset(offset)
-        .order_by(order_by)
-    )
-
-    # filter only if player_name parameter and/or position paramater are passed
-    if player_name != "":
-        stmt = stmt.where(db.players.c.player_name.ilike(f"%{player_name}%"))
-    if position != "":
-        stmt = stmt.where(db.stats.c.position.ilike(f"%{position}%"))
-    if team != "":
-        stmt = stmt.where(db.stats.c.team.ilike(f"%{team}%"))
-
-    # connect to database
+    sql = f"""
+        SELECT player_id, player_name, position, team, age, fantasy_points_standard_10, fantasy_points_ppr_10
+        FROM players
+        JOIN stats ON players.player_id = stats.player_id
+        WHERE {where_statement}
+        ORDER BY {order_clause}
+        LIMIT 11 OFFSET :offset
+    """
     with db.engine.begin() as connection:
-        result = connection.execute(stmt).fetchall()
+        result = connection.execute(sqlalchemy.text(sql), {'offset': offset}).fetchall()
         json = []
         # set next page
         if len(result) > 10:
