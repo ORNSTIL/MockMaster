@@ -19,14 +19,14 @@ def update_team_name(team_id: int, update_request: TeamUpdateRequest):
     Updates the name of a team based on the team_id.
     """
     with db.engine.begin() as connection:
-        updated_team_id = connection.execute(sqlalchemy.text("""UPDATE teams
-                                                       SET team_name = :team_name
-                                                       WHERE team_id = :team_id"""),
-                                    {"team_name": update_request.team_name, "team_id": team_id}).scalar_one_or_none()
-        if not updated_team_id:
+        update_team = connection.execute(sqlalchemy.text("""
+            UPDATE teams SET team_name = :team_name WHERE team_id = :team_id
+        """), {"team_name": update_request.team_name, "team_id": team_id})
+        
+        if update_team.rowcount == 0:
             raise HTTPException(status_code=404, detail="Team not found")
 
-    return "OK"
+    return {"message": "Team name updated successfully"}
 
 
 @router.get("/{team_id}")
