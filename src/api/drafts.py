@@ -221,36 +221,3 @@ def end_draft(draft_id: int):
 
     return {"success": True}
 
-# For create_draft_room testing
-# {
-#   "draft_type": "PPR",
-#   "draft_name": "Example Draft",
-#   "draft_size": 10,
-#   "draft_length": 60,
-#   "roster_positions": [
-#     {
-#       "position": "QB",
-#       "min_num": 1,
-#       "max_num": 3
-#     },
-#     {
-#       "position": "RB",
-#       "min_num": 2,
-#       "max_num": 6
-#     },
-#     {
-#       "position": "WR",
-#       "min_num": 2,
-#       "max_num": 6
-#     },
-#     {
-#       "position": "TE",
-#       "min_num": 1,
-#       "max_num": 3
-#     }
-#   ],
-#   "flex_spots": 2,
-#   "roster_size": 14,
-#   "team_name": "Example Team",
-#   "user_name": "exampleteam1"
-# }
