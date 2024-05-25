@@ -134,29 +134,29 @@ def start_draft(draft_id: int):
             LEFT JOIN teams ON drafts.draft_id = teams.draft_id
             WHERE drafts.draft_id = :draft_id
             GROUP BY drafts.draft_status
-        """), {'draft_id': draft_id}).mappings().fetchone()
+        """), {'draft_id': draft_id}).fetchone()
 
-        if (not draft_info) or (draft_info['draft_status'] != 'pending'):
+        if (not draft_info) or (draft_info.draft_status != 'pending'):
             raise HTTPException(status_code=404, detail="Draft not found or not in a pending state")
 
-        if draft_info['team_count'] == 0:
+        if draft_info.team_count == 0:
             raise HTTPException(status_code=400, detail="Cannot start a draft with no teams")
 
         # Generate random draft positions
-        draft_positions = list(range(1, draft_info['team_count'] + 1))
+        draft_positions = list(range(1, draft_info.team_count + 1))
         random.shuffle(draft_positions)
 
         # Fetch team IDs to update their draft positions
         teams = connection.execute(sqlalchemy.text("""
             SELECT team_id FROM teams WHERE draft_id = :draft_id
-        """), {'draft_id': draft_id}).mappings().fetchall()
+        """), {'draft_id': draft_id}).fetchall()
 
         # Assign random draft positions to each team
         for team, position in zip(teams, draft_positions):
             connection.execute(sqlalchemy.text("""
                 UPDATE teams SET draft_position = :position
                 WHERE team_id = :team_id
-            """), {'position': position, 'team_id': team['team_id']})
+            """), {'position': position, 'team_id': team.team_id})
 
         # Update the draft status to 'active'
         connection.execute(sqlalchemy.text("""
