@@ -35,10 +35,10 @@ class JoinDraftRequest(BaseModel):
 def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
     with db.engine.begin() as connection:
         # Check if draft exists, is not full, and is in a 'pending' status
-        draft = connection.execute(sqlalchemy.text("""
-            SELECT draft_size, draft_status FROM drafts 
+        draft = connection.execute(sqlalchemy.text(""" 
+            SELECT draft_size FROM drafts
             WHERE draft_id = :id AND draft_status = 'pending'
-        """), {"id": draft_id}).mappings().fetchone()
+        """), {"id": draft_id}).fetchone()
 
         if not draft:
             raise HTTPException(status_code=404, detail="Draft not found or not in a pending state")
@@ -48,7 +48,7 @@ def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
             SELECT COUNT(*) FROM teams WHERE draft_id = :id
         """), {"id": draft_id}).scalar_one()
 
-        if team_count >= draft['draft_size']:
+        if team_count >= draft.draft_size:
             raise HTTPException(status_code=400, detail="Draft is already full")
 
         # Insert the new team into the draft
