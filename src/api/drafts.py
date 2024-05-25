@@ -146,6 +146,19 @@ def start_draft(draft_id: int):
         draft_positions = list(range(1, draft_info.team_count + 1))
         random.shuffle(draft_positions)
 
+        # Assign random draft position to each team in draft, update respectively in teams db
+        assign_draft_positions(draft_positions, draft_id)
+
+        # Update the draft status to 'active'
+        connection.execute(sqlalchemy.text("""
+            UPDATE drafts SET draft_status = 'active'
+            WHERE draft_id = :draft_id
+        """), {'draft_id': draft_id})
+
+    return {"success": True, "message": "Draft started and draft positions assigned randomly"}
+
+def assign_draft_positions(draft_positions: list, draft_id: int):
+    with db.engine.begin() as connection:
         # Fetch team IDs to update their draft positions
         teams = connection.execute(sqlalchemy.text("""
             SELECT team_id FROM teams WHERE draft_id = :draft_id
@@ -157,15 +170,7 @@ def start_draft(draft_id: int):
                 UPDATE teams SET draft_position = :position
                 WHERE team_id = :team_id
             """), {'position': position, 'team_id': team.team_id})
-
-        # Update the draft status to 'active'
-        connection.execute(sqlalchemy.text("""
-            UPDATE drafts SET draft_status = 'active'
-            WHERE draft_id = :draft_id
-        """), {'draft_id': draft_id})
-
-    return {"success": True, "message": "Draft started and draft positions assigned randomly"}
-
+    return
 
 @router.put("/{draft_id}/pause")
 def pause_draft(draft_id: int):
