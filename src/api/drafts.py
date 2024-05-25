@@ -58,9 +58,9 @@ def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
             RETURNING team_id
         """), {"id": draft_id, "team": join_request.team_name, "user": join_request.user_name}).scalar_one()
 
-        print(f"Team ID : {team_id}")
+    print(f"Team ID : {team_id}")
 
-        return {"team_id": team_id}
+    return {"team_id": team_id}
 
 @router.post("/")
 def create_draft_room(draft_request: DraftRequest):
