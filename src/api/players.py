@@ -142,26 +142,107 @@ def get_player_statistics(player_id: str):
 @router.post("/{player_id}/draft")
 def draft_player(player_id: str, request: DraftPlayerRequest):
     with db.engine.begin() as connection:
-        # update database with draft selection
-        try:
-            connection.execute(sqlalchemy.text("""
-                WITH previousPicks AS (
-                SELECT COUNT(*) AS picks
-                FROM selections
-                JOIN teams ON selections.team_id = teams.team_id
-                JOIN drafts ON teams.draft_id = drafts.draft_id
-                WHERE teams.draft_id = (
-                    SELECT teams.draft_id
-                    FROM teams
-                    WHERE teams.team_id = :team_id
-                )
-                )
-                INSERT INTO selections (team_id, player_id, when_selected)
-                SELECT :team_id, :player_id, picks+1
-                FROM previousPicks;"""), 
-                {'team_id': request.team_id, 'player_id': player_id})
+        draft_info = connection.execute(sqlalchemy.text("""
+            SELECT teams.draft_id, drafts.draft_status, teams.draft_position, drafts.roster_size FROM teams
+            JOIN drafts ON teams.draft_id = drafts.draft_id
+            WHERE teams.team_id = :team_id
+        """), {'team_id': request.team_id}).mappings().fetchone()
 
-            return "OK"
-        # if the player is already drafted or the team is not found
-        except sqlalchemy.exc.IntegrityError as e:
-            raise HTTPException(status_code=409, detail="Player already drafted or team not found")
+        if not draft_info:
+            raise HTTPException(status_code=404, detail="Team not found")
+
+        if draft_info['draft_status'] != 'active':
+            raise HTTPException(status_code=409, detail="Draft not active")
+        
+        try:
+            player_position = connection.execute(sqlalchemy.text("""
+                SELECT position FROM stats WHERE player_id = :player_id
+            """), {'player_id': player_id}).scalar_one()
+
+        except:
+            raise HTTPException(status_code=404, detail="Player not found")
+
+        already_drafted = connection.execute(sqlalchemy.text("""
+            SELECT EXISTS (
+                SELECT 1 FROM selections
+                JOIN teams ON selections.team_id = teams.team_id
+                WHERE teams.draft_id = :draft_id AND selections.player_id = :player_id
+            )
+        """), {'draft_id': draft_info['draft_id'], 'player_id': player_id}).scalar_one()
+
+        if already_drafted:
+            raise HTTPException(status_code=409, detail="Player already drafted in this draft")
+
+        previous_picks = connection.execute(sqlalchemy.text("""
+            SELECT COUNT(*) FROM selections
+            JOIN teams ON selections.team_id = teams.team_id
+            WHERE teams.draft_id = :draft_id
+        """), {'draft_id': draft_info['draft_id']}).scalar_one()
+
+        number_of_teams = connection.execute(sqlalchemy.text("""
+            SELECT COUNT(*) FROM teams
+            WHERE draft_id = :draft_id
+        """), {'draft_id': draft_info['draft_id']}).scalar_one()
+
+        last_round = previous_picks // number_of_teams
+        if last_round % 2 == 1:
+            current_pick = number_of_teams - (previous_picks % number_of_teams)
+        else:
+            current_pick = (previous_picks % number_of_teams) + 1
+
+        if current_pick != draft_info['draft_position']:
+            raise HTTPException(status_code=403, detail="Not your turn to draft")
+        
+        total_selections = connection.execute(sqlalchemy.text("""
+            SELECT COUNT(*) FROM selections
+            WHERE team_id = :team_id
+        """), {'team_id': request.team_id}).scalar_one()
+        remaining_picks = draft_info['roster_size'] - total_selections
+
+        positions_needed = {}
+        total_needed_picks = 0
+        positions = connection.execute(sqlalchemy.text("""
+            SELECT position, min FROM position_requirements
+            WHERE draft_id = :draft_id
+        """), {'draft_id': draft_info['draft_id']}).mappings().fetchall()
+        
+        for pos in positions:
+            count = connection.execute(sqlalchemy.text("""
+                SELECT COUNT(*) FROM selections
+                JOIN stats ON selections.player_id = stats.player_id
+                WHERE selections.team_id = :team_id AND stats.position = :position
+            """), {'team_id': request.team_id, 'position': pos['position']}).scalar_one()
+ 
+            needed = max(0, pos['min'] - count)
+            positions_needed[pos['position']] = needed
+            total_needed_picks += needed
+
+        current_count = connection.execute(sqlalchemy.text("""
+            SELECT COUNT(*) FROM selections
+            JOIN stats ON selections.player_id = stats.player_id
+            WHERE selections.team_id = :team_id AND stats.position = :position
+        """), {'team_id': request.team_id, 'position': player_position}).scalar_one()
+
+        max_allowed = connection.execute(sqlalchemy.text("""
+            SELECT max FROM position_requirements
+            WHERE draft_id = :draft_id AND position = :position
+        """), {'draft_id': draft_info['draft_id'], 'position': player_position}).scalar_one()
+
+        if total_needed_picks >= remaining_picks and positions_needed[player_position] < 1:
+            raise HTTPException(status_code=409, detail="Cannot draft player; minimum positions not met. Current requirements:" + str(positions_needed))
+        elif current_count >= max_allowed:
+            raise HTTPException(status_code=409, detail=f"Maximum number of {player_position} players reached")
+        
+        connection.execute(sqlalchemy.text("""
+            INSERT INTO selections (team_id, player_id, when_selected)
+            VALUES (:team_id, :player_id, :when_selected)
+        """), {'team_id': request.team_id, 'player_id': player_id, 'when_selected': previous_picks + 1})
+
+        total_possible_picks = number_of_teams * draft_info['roster_size']
+        if previous_picks + 1 == total_possible_picks:
+            connection.execute(sqlalchemy.text("""
+                UPDATE drafts SET draft_status = 'ended'
+                WHERE draft_id = :draft_id
+            """), {'draft_id': draft_info['draft_id']})
+
+        return {"message": "Player drafted successfully"}
