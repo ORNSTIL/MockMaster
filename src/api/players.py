@@ -48,7 +48,7 @@ def search_players(
     Gets results according to specified search parameters and sort options. 
     Provides player_id, player_name, position, team, age, standard_fantasy_points, and ppr_fantasy_points for each result.
     """
-    # set which page of results to get
+
     if search_page == "":
         offset = 0
         prev_token = ""
@@ -59,7 +59,6 @@ def search_players(
         else:
             prev_token = str(int(search_page)-1)
 
-    # set sort order
     if sort_col is search_sort_options.player_name:
         if sort_order is search_sort_order.asc:
             order_by = db.players.c.player_name
@@ -93,7 +92,6 @@ def search_players(
     else:
         raise HTTPException(status_code=400, detail="Invalid sort column specified")
 
-    # set sqlalchemy statement using query builder
     stmt = (
         sqlalchemy
         .select(
@@ -114,7 +112,6 @@ def search_players(
         .order_by(order_by)
     )
 
-    # add filter if strings were specified
     if player_name != "":
         stmt = stmt.where(db.players.c.player_name.ilike(f"%{player_name}%"))
     if position != "":
@@ -125,7 +122,6 @@ def search_players(
     with db.engine.begin() as connection:
         result = connection.execute(stmt).fetchall()
         json = []
-        # set next page token
         if len(result) > 10:
             result = result[0:10]
             if search_page == "":
@@ -134,7 +130,7 @@ def search_players(
                 next_token = str(int(search_page)+1)
         else:
             next_token = ""
-        # create search result entries for page
+
         for row in result:
             json.append(
                 {
@@ -170,7 +166,6 @@ def get_player_statistics(player_id: str):
             FROM stats
             WHERE player_id = :player_id"""), {'player_id': player_id}).mappings()
 
-        # create list of season statistics
         seasons = []
         for season in stats:
             seasons.append({
@@ -198,7 +193,6 @@ def get_player_statistics(player_id: str):
                 'fantasy_points_ppr_10': season.fantasy_points_ppr_10 / 10
             })
 
-        # if no player statistics are found
         if len(seasons) <= 0:
             raise HTTPException(status_code=404, detail="Player statistics not found")
 
@@ -211,6 +205,9 @@ def get_player_statistics(player_id: str):
 
 @router.post("/{player_id}/draft")
 def draft_player(player_id: str, request: DraftPlayerRequest):
+    """
+    Drafts a player to a team. The player must be available, it must be the team's pick, and the player pick must not violate minimum and maximum position restraints for a roster.
+    """
     with db.engine.begin() as connection:
         draft_info = connection.execute(sqlalchemy.text("""
             SELECT teams.draft_id, drafts.draft_status, teams.draft_position, drafts.roster_size FROM teams
