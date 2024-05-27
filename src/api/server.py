@@ -1,5 +1,5 @@
 from fastapi import FastAPI, exceptions
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import ValidationError
 from src.api import drafts, players, teams
 import json
@@ -32,3 +32,7 @@ async def validation_exception_handler(request, exc):
 @app.get("/")
 async def root():
     return {"message": "Welcome to MockMaster."}
+
+@app.get("/favicon.ico")
+async def favicon():
+    return Response(status_code=204)
