@@ -4,6 +4,7 @@ from src.api import auth
 import sqlalchemy
 from src import database as db
 import random
+import time
 
 router = APIRouter(
     prefix="/drafts",
@@ -35,11 +36,11 @@ def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
     with db.engine.begin() as connection:
         # Check if draft exists, is not full, and is in a 'pending' status
         draft = connection.execute(sqlalchemy.text(""" 
-            SELECT draft_size FROM drafts
-            WHERE draft_id = :id AND draft_status = 'pending'
+            SELECT draft_size, draft_status FROM drafts
+            WHERE draft_id = :id
         """), {"id": draft_id}).fetchone()
 
-        if not draft:
+        if (not draft) or (draft.draft_status != 'pending'):
             raise HTTPException(status_code=404, detail="Draft not found or not in a pending state")
 
         # Count existing teams to ensure the draft is not full
@@ -125,16 +126,26 @@ def get_draft_rooms():
 def start_draft(draft_id: int):
     with db.engine.begin() as connection:
         # Ensure the draft is in 'pending' state and count the number of teams
+        draft_lock = connection.execute(sqlalchemy.text("""
+            SELECT draft_status
+            FROM drafts
+            WHERE drafts.draft_id = :draft_id
+            FOR UPDATE
+        """), {'draft_id': draft_id}).fetchone()
+
         draft_info = connection.execute(sqlalchemy.text("""
-            SELECT draft_status, COUNT(team_id) as team_count
+            SELECT COUNT(team_id) as team_count
             FROM drafts
             LEFT JOIN teams ON drafts.draft_id = teams.draft_id
             WHERE drafts.draft_id = :draft_id
             GROUP BY drafts.draft_status
-            FOR UPDATE
         """), {'draft_id': draft_id}).fetchone()
 
-        if (not draft_info) or (draft_info.draft_status != 'pending'):
+        print("LOCKED")
+        time.sleep(20)
+        print("UNLOCKED")
+
+        if (not draft_lock) or (draft_lock.draft_status != 'pending'):
             raise HTTPException(status_code=404, detail="Draft not found or not in a pending state")
 
         if draft_info.team_count == 0:
