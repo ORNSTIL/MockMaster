@@ -1,8 +1,17 @@
-
+import sys
 
 def main():
-    fin = open("2023_player_stats_old.csv", "r")
-    fout = open("2023_player_stats.csv", "w")
+    if len(sys.argv) != 3:
+        sys.exit(1)
+
+    input_file = sys.argv[1]
+    output_file = sys.argv[2]
+
+    try:
+        fin = open(input_file, "r")
+        fout = open(output_file, "w")
+    except IOError:
+        sys.exit(1)
     
     line = fin.readline()
     fout.write(line)
