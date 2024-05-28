@@ -84,14 +84,31 @@ create table
     constraint selections_team_id_fkey foreign key (team_id) references teams (team_id)
   ) tablespace pg_default;
 
--- Part 2: Populating initial player data in database (if using local database)
--- 1) Navigate to your localhost instance of Supabase 
+-- Part 2: Populating initial player data
+-- 1) Navigate to your instance of Supabase 
 -- 2) Click on the "players" table
 -- 3) Click "Insert" and "Import" data from CSV 
--- 4) Use "2023_players.csv" file from the data folder of the repository
+-- 4) Use "players.csv" file from the data folder of the repository
 -- 5) Click "Import Data"
 -- 6) Click on the "stats" table
 -- 7) Click "Insert" and "Import" data from CSV 
--- 8) Use "2023_stats.csv" file from the data folder of the repository
+-- 8) Use "stats.csv" file from the data folder of the repository
 -- 9) Click "Import Data"
--- Now your local database will have all the necassary fantasy football player data for the 2023 season
+-- Now your local database will have all the necassary fantasy football player data for the 2019-2023 seasons
+
+-- Part 3: Creating the materialized view for search players endpoint. 
+-- NOTE: Once the initial data is imported, the materialized view never needs to be updated.
+create materialized view
+  public.player_points as
+select
+  players.player_id,
+  players.player_name,
+  stats.year,
+  stats."position",
+  stats.team,
+  stats.age,
+  stats.fantasy_points_standard_10,
+  stats.fantasy_points_ppr_10
+from
+  stats
+  join players on stats.player_id = players.player_id;
