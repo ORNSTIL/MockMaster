@@ -13,5 +13,4 @@ engine = create_engine(database_connection_url(), pool_pre_ping=True)
 
 # create object metadata
 metadata_obj = sqlalchemy.MetaData()
-players = sqlalchemy.Table("players", metadata_obj, autoload_with=engine)
-stats = sqlalchemy.Table("stats", metadata_obj, autoload_with=engine)
+player_points = sqlalchemy.Table("player_points", metadata_obj, autoload_with=engine)

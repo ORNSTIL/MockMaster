@@ -11,7 +11,7 @@ router = APIRouter(
     dependencies=[Depends(auth.get_api_key)],
 )
 
-class PlayerSearchResponse(BaseModel):
+class SearchPlayersResponse(BaseModel):
     previous: str
     next: str
     results: list[dict]
@@ -23,11 +23,27 @@ class PlayerStatisticsResponse(BaseModel):
 class DraftPlayerRequest(BaseModel):
     team_id: int
 
+class search_year_options(str, Enum):
+    all = "all"
+    y2023 = "2023"
+    y2022 = "2022"
+    y2021 = "2021"
+    y2020 = "2020"
+    y2019 = "2019"
+
+class search_position_options(str, Enum):
+    all = "all"
+    QB = "QB"
+    RB = "RB"
+    WR = "WR"
+    TE = "TE"
+
 class search_sort_options(str, Enum):
     player_name = "player_name"
+    year = "year"
+    age = "age"
     position = "position"
     team = "team"
-    age = "age"
     standard_fantasy_points = "standard_fantasy_points"
     ppr_fantasy_points = "ppr_fantasy_points"
 
@@ -35,14 +51,16 @@ class search_sort_order(str, Enum):
     asc = "asc"
     desc = "desc"
 
-@router.get("/search/", response_model=PlayerSearchResponse)
+@router.get("/search/", response_model=SearchPlayersResponse)
 def search_players(
     player_name: str = "",
-    position: str = "",
+    year: search_year_options = search_year_options.all,
+    age: str = "",
+    position: search_position_options = search_position_options.all,
     team: str = "",
-    search_page: str = "",
     sort_col: search_sort_options = search_sort_options.ppr_fantasy_points,
-    sort_order: search_sort_order = search_sort_order.desc
+    sort_order: search_sort_order = search_sort_order.desc,
+    search_page: str = ""
 ):
     """
     Gets results according to specified search parameters and sort options. 
@@ -61,63 +79,70 @@ def search_players(
 
     if sort_col is search_sort_options.player_name:
         if sort_order is search_sort_order.asc:
-            order_by = db.players.c.player_name
+            order_by = db.player_points.c.player_name
         else:
-            order_by = sqlalchemy.desc(db.players.c.player_name)
-    elif sort_col is search_sort_options.position:
+            order_by = sqlalchemy.desc(db.player_points.c.player_name)
+    elif sort_col is search_sort_options.year:
         if sort_order is search_sort_order.asc:
-            order_by = db.stats.c.position
+            order_by = db.player_points.c.year
         else:
-            order_by = sqlalchemy.desc(db.stats.c.position)
-    elif sort_col is search_sort_options.team:
-        if sort_order is search_sort_order.asc:
-            order_by = db.stats.c.team
-        else:
-            order_by = sqlalchemy.desc(db.stats.c.team)
+            order_by = sqlalchemy.desc(db.player_points.c.year)
     elif sort_col is search_sort_options.age:
         if sort_order is search_sort_order.asc:
-            order_by = db.stats.c.age
+            order_by = db.player_points.c.age
         else:
-            order_by = sqlalchemy.desc(db.stats.c.age)
+            order_by = sqlalchemy.desc(db.player_points.c.age)
+    elif sort_col is search_sort_options.position:
+        if sort_order is search_sort_order.asc:
+            order_by = db.player_points.c.position
+        else:
+            order_by = sqlalchemy.desc(db.player_points.c.position)
+    elif sort_col is search_sort_options.team:
+        if sort_order is search_sort_order.asc:
+            order_by = db.player_points.c.team
+        else:
+            order_by = sqlalchemy.desc(db.player_points.c.team)
     elif sort_col is search_sort_options.standard_fantasy_points:
         if sort_order is search_sort_order.asc:
-            order_by = db.stats.c.fantasy_points_standard_10
+            order_by = db.player_points.c.fantasy_points_standard_10
         else:
-            order_by = sqlalchemy.desc(db.stats.c.fantasy_points_standard_10)
+            order_by = sqlalchemy.desc(db.player_points.c.fantasy_points_standard_10)
     elif sort_col is search_sort_options.ppr_fantasy_points:
         if sort_order is search_sort_order.asc:
-            order_by = db.stats.c.fantasy_points_ppr_10
+            order_by = db.player_points.c.fantasy_points_ppr_10
         else:
-            order_by = sqlalchemy.desc(db.stats.c.fantasy_points_ppr_10)
+            order_by = sqlalchemy.desc(db.player_points.c.fantasy_points_ppr_10)
     else:
         raise HTTPException(status_code=400, detail="Invalid sort column specified")
 
     stmt = (
         sqlalchemy
         .select(
-            db.players.c.player_id,
-            db.players.c.player_name,
-            db.stats.c.position,
-            db.stats.c.team,
-            db.stats.c.age,
-            db.stats.c.fantasy_points_standard_10,
-            db.stats.c.fantasy_points_ppr_10
+            db.player_points.c.player_id,
+            db.player_points.c.player_name,
+            db.player_points.c.year,
+            db.player_points.c.position,
+            db.player_points.c.team,
+            db.player_points.c.age,
+            db.player_points.c.fantasy_points_standard_10,
+            db.player_points.c.fantasy_points_ppr_10
         )
-        .select_from(
-            db.players
-            .join(db.stats, db.players.c.player_id == db.stats.c.player_id)
-        )
+        .select_from(db.player_points)
         .limit(11)
         .offset(offset)
         .order_by(order_by)
     )
 
     if player_name != "":
-        stmt = stmt.where(db.players.c.player_name.ilike(f"%{player_name}%"))
-    if position != "":
-        stmt = stmt.where(db.stats.c.position.ilike(f"%{position}%"))
+        stmt = stmt.where(db.player_points.c.player_name.ilike(f"%{player_name}%"))
+    if year != "all":
+        stmt = stmt.where(db.player_points.c.year == year)
+    if age != "":
+        stmt = stmt.where(db.player_points.c.age == int(age))
+    if position != "all":
+        stmt = stmt.where(db.player_points.c.position.ilike(position))
     if team != "":
-        stmt = stmt.where(db.stats.c.team.ilike(f"%{team}%"))
+        stmt = stmt.where(db.player_points.c.team.ilike(f"%{team}%"))
 
     with db.engine.begin() as connection:
         result = connection.execute(stmt).fetchall()
@@ -136,15 +161,16 @@ def search_players(
                 {
                     "player_id": row.player_id,
                     "player_name": row.player_name,
+                    "year": row.year,
+                    "age": row.age,
                     "position": row.position,
                     "team": row.team,
-                    "age": row.age,
                     "standard_fantasy_points": row.fantasy_points_standard_10/10,
                     "ppr_fantasy_points": row.fantasy_points_ppr_10/10
                 }
             )
 
-    search_result = {"previous": prev_token, "next": next_token, "results": json}
+        search_result = {"previous": prev_token, "next": next_token, "results": json}
 
     print(search_result)
 
@@ -198,9 +224,9 @@ def get_player_statistics(player_id: str):
 
         player_statistics = {"player_id": player_id, "seasons": seasons}
 
-        print(player_statistics)
+    print(player_statistics)
 
-        return {"player_id": player_id, "seasons": seasons}
+    return {"player_id": player_id, "seasons": seasons}
 
 
 @router.post("/{player_id}/draft")
