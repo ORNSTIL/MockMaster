@@ -148,7 +148,7 @@ def search_players(
                 }
             )
 
-    search_result = {"previous": prev_token, "next": next_token, "results": json}
+        search_result = {"previous": prev_token, "next": next_token, "results": json}
 
     print(search_result)
 
@@ -204,9 +204,9 @@ def get_player_statistics(player_id: str):
 
         player_statistics = {"player_id": player_id, "seasons": seasons}
 
-        print(player_statistics)
+    print(player_statistics)
 
-        return {"player_id": player_id, "seasons": seasons}
+    return {"player_id": player_id, "seasons": seasons}
 
 
 @router.post("/{player_id}/draft")
