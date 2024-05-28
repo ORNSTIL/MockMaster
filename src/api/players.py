@@ -23,11 +23,27 @@ class PlayerStatisticsResponse(BaseModel):
 class DraftPlayerRequest(BaseModel):
     team_id: int
 
+class search_year_options(str, Enum):
+    all = "all"
+    y2023 = "2023"
+    y2022 = "2022"
+    y2021 = "2021"
+    y2020 = "2020"
+    y2019 = "2019"
+
+class search_position_options(str, Enum):
+    all = "all"
+    QB = "QB"
+    RB = "RB"
+    WR = "WR"
+    TE = "TE"
+
 class search_sort_options(str, Enum):
     player_name = "player_name"
+    year = "year"
+    age = "age"
     position = "position"
     team = "team"
-    age = "age"
     standard_fantasy_points = "standard_fantasy_points"
     ppr_fantasy_points = "ppr_fantasy_points"
 
@@ -38,11 +54,13 @@ class search_sort_order(str, Enum):
 @router.get("/search/", response_model=SearchPlayersResponse)
 def search_players(
     player_name: str = "",
-    position: str = "",
+    year: search_year_options = search_year_options.all,
+    age: str = "",
+    position: search_position_options = search_position_options.all,
     team: str = "",
-    search_page: str = "",
     sort_col: search_sort_options = search_sort_options.ppr_fantasy_points,
-    sort_order: search_sort_order = search_sort_order.desc
+    sort_order: search_sort_order = search_sort_order.desc,
+    search_page: str = ""
 ):
     """
     Gets results according to specified search parameters and sort options. 
@@ -65,6 +83,16 @@ def search_players(
             order_by = db.players.c.player_name
         else:
             order_by = sqlalchemy.desc(db.players.c.player_name)
+    elif sort_col is search_sort_options.year:
+        if sort_order is search_sort_order.asc:
+            order_by = db.stats.c.year
+        else:
+            order_by = sqlalchemy.desc(db.stats.c.year)
+    elif sort_col is search_sort_options.age:
+        if sort_order is search_sort_order.asc:
+            order_by = db.stats.c.age
+        else:
+            order_by = sqlalchemy.desc(db.stats.c.age)
     elif sort_col is search_sort_options.position:
         if sort_order is search_sort_order.asc:
             order_by = db.stats.c.position
@@ -72,14 +100,9 @@ def search_players(
             order_by = sqlalchemy.desc(db.stats.c.position)
     elif sort_col is search_sort_options.team:
         if sort_order is search_sort_order.asc:
-            order_by = db.stats.c.team
+            order_by = db.players.c.team
         else:
-            order_by = sqlalchemy.desc(db.stats.c.team)
-    elif sort_col is search_sort_options.age:
-        if sort_order is search_sort_order.asc:
-            order_by = db.stats.c.age
-        else:
-            order_by = sqlalchemy.desc(db.stats.c.age)
+            order_by = sqlalchemy.desc(db.players.c.team)
     elif sort_col is search_sort_options.standard_fantasy_points:
         if sort_order is search_sort_order.asc:
             order_by = db.stats.c.fantasy_points_standard_10
@@ -99,6 +122,7 @@ def search_players(
         .select(
             db.players.c.player_id,
             db.players.c.player_name,
+            db.stats.c.year,
             db.stats.c.position,
             db.stats.c.team,
             db.stats.c.age,
@@ -106,8 +130,8 @@ def search_players(
             db.stats.c.fantasy_points_ppr_10
         )
         .select_from(
-            db.players
-            .join(db.stats, db.players.c.player_id == db.stats.c.player_id)
+            db.stats
+            .join(db.players, db.stats.c.player_id == db.players.c.player_id)
         )
         .limit(11)
         .offset(offset)
@@ -117,8 +141,12 @@ def search_players(
     # add filter if strings were specified
     if player_name != "":
         stmt = stmt.where(db.players.c.player_name.ilike(f"%{player_name}%"))
-    if position != "":
-        stmt = stmt.where(db.stats.c.position.ilike(f"%{position}%"))
+    if year != "all":
+        stmt = stmt.where(db.stats.c.year == year)
+    if age != "":
+        stmt = stmt.where(db.stats.c.age == int(age))
+    if position != "all":
+        stmt = stmt.where(db.stats.c.position.ilike(position))
     if team != "":
         stmt = stmt.where(db.stats.c.team.ilike(f"%{team}%"))
 
@@ -140,9 +168,10 @@ def search_players(
                 {
                     "player_id": row.player_id,
                     "player_name": row.player_name,
+                    "year": row.year,
+                    "age": row.age,
                     "position": row.position,
                     "team": row.team,
-                    "age": row.age,
                     "standard_fantasy_points": row.fantasy_points_standard_10/10,
                     "ppr_fantasy_points": row.fantasy_points_ppr_10/10
                 }
