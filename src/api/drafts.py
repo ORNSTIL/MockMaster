@@ -220,7 +220,7 @@ def end_draft(draft_id: int):
 
 
 @router.get("/{draft_id}/picks")
-def get_draft_picks(draft_id: int = Path(..., description="The ID of the draft to retrieve picks for")):
+def get_draft_picks(draft_id: int):
     with db.engine.begin() as connection:
         try:
             get_draft = connection.execute(sqlalchemy.text("""
