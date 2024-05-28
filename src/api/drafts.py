@@ -22,7 +22,6 @@ class DraftRequest(BaseModel):
     draft_size: int
     draft_length: int
     roster_positions: list[RosterPosition] #Format: [position_name, min, max]
-    flex_spots: int
     roster_size: int
     team_name: str
     user_name: str
@@ -35,10 +34,10 @@ class JoinDraftRequest(BaseModel):
 def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
     with db.engine.begin() as connection:
         # Check if draft exists, is not full, and is in a 'pending' status
-        draft = connection.execute(sqlalchemy.text("""
-            SELECT draft_size, draft_status FROM drafts 
+        draft = connection.execute(sqlalchemy.text(""" 
+            SELECT draft_size FROM drafts
             WHERE draft_id = :id AND draft_status = 'pending'
-        """), {"id": draft_id}).mappings().fetchone()
+        """), {"id": draft_id}).fetchone()
 
         if not draft:
             raise HTTPException(status_code=404, detail="Draft not found or not in a pending state")
@@ -48,7 +47,7 @@ def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
             SELECT COUNT(*) FROM teams WHERE draft_id = :id
         """), {"id": draft_id}).scalar_one()
 
-        if team_count >= draft['draft_size']:
+        if team_count >= draft.draft_size:
             raise HTTPException(status_code=400, detail="Draft is already full")
 
         # Insert the new team into the draft
@@ -58,24 +57,23 @@ def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
             RETURNING team_id
         """), {"id": draft_id, "team": join_request.team_name, "user": join_request.user_name}).scalar_one()
 
-        print(f"Team ID : {team_id}")
+    print(f"Team ID : {team_id}")
 
-        return {"team_id": team_id}
+    return {"team_id": team_id}
 
 @router.post("/")
 def create_draft_room(draft_request: DraftRequest):
     with db.engine.begin() as connection:
         # update database
-        id_sql = sqlalchemy.text("""INSERT INTO drafts (draft_name, draft_type, roster_size, draft_size, draft_length, flex_spots)
-                                                VALUES (:name, :type, :rsize, :dsize, :dlength, :flex)
+        id_sql = sqlalchemy.text("""INSERT INTO drafts (draft_name, draft_type, roster_size, draft_size, draft_length)
+                                                VALUES (:name, :type, :rsize, :dsize, :dlength)
                                                 RETURNING draft_id
                                                 """)
         id_options = {"name": draft_request.draft_name,
                                                      "type": draft_request.draft_type,
                                                     "rsize": draft_request.roster_size,
                                                     "dsize": draft_request.draft_size,
-                                                    "dlength": draft_request.draft_length,
-                                                    "flex": draft_request.flex_spots}
+                                                    "dlength": draft_request.draft_length}
         id = connection.execute(id_sql, id_options).scalar_one()
         
         # create roster positions dictionary
@@ -102,7 +100,7 @@ def create_draft_room(draft_request: DraftRequest):
 def get_draft_rooms():
     with db.engine.begin() as connection:
         # query database
-        draft_rooms = connection.execute(sqlalchemy.text("""SELECT draft_id, draft_name, draft_type, draft_size, roster_size, draft_length, flex_spots
+        draft_rooms = connection.execute(sqlalchemy.text("""SELECT draft_id, draft_name, draft_type, draft_size, roster_size, draft_length
                                                             FROM drafts
                                                             WHERE draft_status = 'pending'""")).mappings().fetchall()
         
@@ -113,8 +111,7 @@ def get_draft_rooms():
              "draft_type": room['draft_type'],
              "draft_size": room['draft_size'],
              "roster_size": room['roster_size'],
-             "draft_length": room['draft_length'],
-             "flex_spots": room['flex_spots']}
+             "draft_length": room['draft_length']}
             for room in draft_rooms
         ]
 
@@ -134,29 +131,20 @@ def start_draft(draft_id: int):
             LEFT JOIN teams ON drafts.draft_id = teams.draft_id
             WHERE drafts.draft_id = :draft_id
             GROUP BY drafts.draft_status
-        """), {'draft_id': draft_id}).mappings().fetchone()
+        """), {'draft_id': draft_id}).fetchone()
 
-        if (not draft_info) or (draft_info['draft_status'] != 'pending'):
+        if (not draft_info) or (draft_info.draft_status != 'pending'):
             raise HTTPException(status_code=404, detail="Draft not found or not in a pending state")
 
-        if draft_info['team_count'] == 0:
+        if draft_info.team_count == 0:
             raise HTTPException(status_code=400, detail="Cannot start a draft with no teams")
 
         # Generate random draft positions
-        draft_positions = list(range(1, draft_info['team_count'] + 1))
+        draft_positions = list(range(1, draft_info.team_count + 1))
         random.shuffle(draft_positions)
 
-        # Fetch team IDs to update their draft positions
-        teams = connection.execute(sqlalchemy.text("""
-            SELECT team_id FROM teams WHERE draft_id = :draft_id
-        """), {'draft_id': draft_id}).mappings().fetchall()
-
-        # Assign random draft positions to each team
-        for team, position in zip(teams, draft_positions):
-            connection.execute(sqlalchemy.text("""
-                UPDATE teams SET draft_position = :position
-                WHERE team_id = :team_id
-            """), {'position': position, 'team_id': team['team_id']})
+        # Assign random draft position to each team in draft, update respectively in teams db
+        assign_draft_positions(draft_positions, draft_id)
 
         # Update the draft status to 'active'
         connection.execute(sqlalchemy.text("""
@@ -166,6 +154,20 @@ def start_draft(draft_id: int):
 
     return {"success": True, "message": "Draft started and draft positions assigned randomly"}
 
+def assign_draft_positions(draft_positions: list, draft_id: int):
+    with db.engine.begin() as connection:
+        # Fetch team IDs to update their draft positions
+        teams = connection.execute(sqlalchemy.text("""
+            SELECT team_id FROM teams WHERE draft_id = :draft_id
+        """), {'draft_id': draft_id}).fetchall()
+
+        # Assign random draft positions to each team
+        for team, position in zip(teams, draft_positions):
+            connection.execute(sqlalchemy.text("""
+                UPDATE teams SET draft_position = :position
+                WHERE team_id = :team_id
+            """), {'position': position, 'team_id': team.team_id})
+    return
 
 @router.put("/{draft_id}/pause")
 def pause_draft(draft_id: int):
@@ -216,36 +218,3 @@ def end_draft(draft_id: int):
 
     return {"success": True}
 
-# For create_draft_room testing
-# {
-#   "draft_type": "PPR",
-#   "draft_name": "Example Draft",
-#   "draft_size": 10,
-#   "draft_length": 60,
-#   "roster_positions": [
-#     {
-#       "position": "QB",
-#       "min_num": 1,
-#       "max_num": 3
-#     },
-#     {
-#       "position": "RB",
-#       "min_num": 2,
-#       "max_num": 6
-#     },
-#     {
-#       "position": "WR",
-#       "min_num": 2,
-#       "max_num": 6
-#     },
-#     {
-#       "position": "TE",
-#       "min_num": 1,
-#       "max_num": 3
-#     }
-#   ],
-#   "flex_spots": 2,
-#   "roster_size": 14,
-#   "team_name": "Example Team",
-#   "user_name": "exampleteam1"
-# }
