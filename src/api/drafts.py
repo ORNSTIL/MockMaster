@@ -218,3 +218,33 @@ def end_draft(draft_id: int):
 
     return {"success": True}
 
+
+@router.get("/{draft_id}/picks")
+def get_draft_picks(draft_id: int = Path(..., description="The ID of the draft to retrieve picks for")):
+    with db.engine.begin() as connection:
+        try:
+            get_draft = connection.execute(sqlalchemy.text("""
+                SELECT selections.when_selected, selections.player_id, stats.position, teams.team_name, teams.team_id
+                FROM selections
+                JOIN teams ON selections.team_id = teams.team_id
+                JOIN players ON selections.player_id = players.player_id
+                JOIN stats ON players.player_id = stats.player_id
+                WHERE teams.draft_id = :draft_id
+                ORDER BY selections.when_selected ASC
+            """), {'draft_id': draft_id}).mappings().fetchall()
+            
+            if not get_draft:
+                raise HTTPException(status_code=404, detail="No picks found for the given draft ID")
+            
+            picks = [{
+                "when_selected": row['when_selected'],
+                "player_id": row['player_id'],
+                "position": row['position'],
+                "team_name": row['team_name'],
+                "team_id": row['team_id']
+            } for row in get_draft]
+
+            return picks
+        
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
