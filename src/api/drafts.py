@@ -22,7 +22,6 @@ class DraftRequest(BaseModel):
     draft_size: int
     draft_length: int
     roster_positions: list[RosterPosition] #Format: [position_name, min, max]
-    flex_spots: int
     roster_size: int
     team_name: str
     user_name: str
@@ -66,16 +65,15 @@ def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
 def create_draft_room(draft_request: DraftRequest):
     with db.engine.begin() as connection:
         # update database
-        id_sql = sqlalchemy.text("""INSERT INTO drafts (draft_name, draft_type, roster_size, draft_size, draft_length, flex_spots)
-                                                VALUES (:name, :type, :rsize, :dsize, :dlength, :flex)
+        id_sql = sqlalchemy.text("""INSERT INTO drafts (draft_name, draft_type, roster_size, draft_size, draft_length)
+                                                VALUES (:name, :type, :rsize, :dsize, :dlength)
                                                 RETURNING draft_id
                                                 """)
         id_options = {"name": draft_request.draft_name,
                                                      "type": draft_request.draft_type,
                                                     "rsize": draft_request.roster_size,
                                                     "dsize": draft_request.draft_size,
-                                                    "dlength": draft_request.draft_length,
-                                                    "flex": draft_request.flex_spots}
+                                                    "dlength": draft_request.draft_length}
         id = connection.execute(id_sql, id_options).scalar_one()
         
         # create roster positions dictionary
@@ -102,7 +100,7 @@ def create_draft_room(draft_request: DraftRequest):
 def get_draft_rooms():
     with db.engine.begin() as connection:
         # query database
-        draft_rooms = connection.execute(sqlalchemy.text("""SELECT draft_id, draft_name, draft_type, draft_size, roster_size, draft_length, flex_spots
+        draft_rooms = connection.execute(sqlalchemy.text("""SELECT draft_id, draft_name, draft_type, draft_size, roster_size, draft_length
                                                             FROM drafts
                                                             WHERE draft_status = 'pending'""")).mappings().fetchall()
         
@@ -113,8 +111,7 @@ def get_draft_rooms():
              "draft_type": room['draft_type'],
              "draft_size": room['draft_size'],
              "roster_size": room['roster_size'],
-             "draft_length": room['draft_length'],
-             "flex_spots": room['flex_spots']}
+             "draft_length": room['draft_length']}
             for room in draft_rooms
         ]
 
