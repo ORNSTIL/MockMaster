@@ -1,6 +1,6 @@
-.vercel
 venv
 .idea
 __pycache__
 /.env
+supabase
 info.log

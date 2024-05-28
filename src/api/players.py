@@ -11,7 +11,7 @@ router = APIRouter(
     dependencies=[Depends(auth.get_api_key)],
 )
 
-class PlayerSearchResponse(BaseModel):
+class SearchPlayersResponse(BaseModel):
     previous: str
     next: str
     results: list[dict]
@@ -35,7 +35,7 @@ class search_sort_order(str, Enum):
     asc = "asc"
     desc = "desc"
 
-@router.get("/search/", response_model=PlayerSearchResponse)
+@router.get("/search/", response_model=SearchPlayersResponse)
 def search_players(
     player_name: str = "",
     position: str = "",
