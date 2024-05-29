@@ -39,7 +39,7 @@ Response:
 {
 	"player_id": "string"
     	"seasons":
-		[
+		{
 			"year": "integer"
 	                "age": "integer"
 	                "position": "string"
@@ -62,7 +62,7 @@ Response:
 	                "two_point_conversions": "integer"
 	                "fantasy_points_standard_10": "float"
 	                "fantasy_points_ppr_10": "float"
-		]
+		}
 }
 ~~~
 
