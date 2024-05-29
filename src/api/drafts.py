@@ -4,6 +4,7 @@ from src.api import auth
 import sqlalchemy
 from src import database as db
 import random
+import time
 
 router = APIRouter(
     prefix="/drafts",
@@ -34,11 +35,10 @@ def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
     """
     with db.engine.begin() as connection:
         # Check if draft exists, is not full, and is in a 'pending' status
-        draft = connection.execute(sqlalchemy.text(""" 
-            SELECT pg_advisory_lock(:id) FROM drafts WHERE draft_id = :id;
-                                                   
+        draft = connection.execute(sqlalchemy.text("""                               
             SELECT draft_size FROM drafts
             WHERE draft_id = :id AND draft_status = 'pending'
+            FOR UPDATE
         """), {"id": draft_id}).fetchone()
 
         if not draft:
@@ -124,17 +124,24 @@ def start_draft(draft_id: int):
     """
     with db.engine.begin() as connection:
         # Ensure the draft is in 'pending' state and count the number of teams
+        draft_lock = connection.execute(sqlalchemy.text("""
+            SELECT draft_status
+            FROM drafts
+            WHERE drafts.draft_id = :draft_id
+            FOR UPDATE
+        """), {'draft_id': draft_id}).fetchone()
+
         draft_info = connection.execute(sqlalchemy.text("""
-            SELECT pg_advisory_lock(:id) FROM drafts WHERE draft_id = :id;
-                                                        
-            SELECT draft_status, COUNT(team_id) as team_count
+            SELECT COUNT(team_id) as team_count
             FROM drafts
             LEFT JOIN teams ON drafts.draft_id = teams.draft_id
             WHERE drafts.draft_id = :draft_id
             GROUP BY drafts.draft_status
-            """), {'draft_id': draft_id}).fetchone()
+        """), {'draft_id': draft_id}).fetchone()
+        
+        time.sleep(20)
 
-        if (not draft_info) or (draft_info.draft_status != 'pending'):
+        if (not draft_lock) or (draft_lock.draft_status != 'pending'):
             raise HTTPException(status_code=404, detail="Draft not found or not in a pending state")
 
         if draft_info.team_count == 0:
@@ -148,20 +155,20 @@ def start_draft(draft_id: int):
         # Fetch team IDs to update their draft positions
         teams = connection.execute(sqlalchemy.text("""
             SELECT team_id FROM teams WHERE draft_id = :draft_id
-            """), {'draft_id': draft_id}).fetchall()
+        """), {'draft_id': draft_id}).fetchall()
 
         # Assign random draft positions to each team
         for team, position in zip(teams, draft_positions):
             connection.execute(sqlalchemy.text("""
                 UPDATE teams SET draft_position = :position
                 WHERE team_id = :team_id
-                """), {'position': position, 'team_id': team.team_id})
+            """), {'position': position, 'team_id': team.team_id})
 
         # Update the draft status to 'active'
         connection.execute(sqlalchemy.text("""
             UPDATE drafts SET draft_status = 'active'
             WHERE draft_id = :draft_id
-            """), {'draft_id': draft_id})
+        """), {'draft_id': draft_id})
 
     return {"success": True, "message": "Draft started and draft positions assigned randomly"}
 
@@ -172,9 +179,7 @@ def pause_draft(draft_id: int):
     Changes the status of a specified draft from active to paused.
     """
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("""
-            SELECT pg_advisory_lock(:id) FROM drafts WHERE draft_id = :id;
-                                                    
+        result = connection.execute(sqlalchemy.text("""                                                    
             UPDATE drafts SET draft_status = 'paused' 
             WHERE draft_id = :draft_id AND draft_status = 'active'
             RETURNING draft_id
@@ -194,9 +199,7 @@ def resume_draft(draft_id: int):
     """
     with db.engine.begin() as connection:
         # Update draft status to 'active' only if it is currently 'paused'
-        result = connection.execute(sqlalchemy.text("""
-            SELECT pg_advisory_lock(:id) FROM drafts WHERE draft_id = :id;
-                                                    
+        result = connection.execute(sqlalchemy.text("""                                                    
             UPDATE drafts 
             SET draft_status = 'active' 
             WHERE draft_id = :draft_id AND draft_status = 'paused'
@@ -216,9 +219,7 @@ def end_draft(draft_id: int):
     Ends the drafting process by changing the status of a specified draft from active to ended. An ended draft cannot be resumed.
     """
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("""
-            SELECT pg_advisory_lock(:id) FROM drafts WHERE draft_id = :id;
-            
+        result = connection.execute(sqlalchemy.text("""            
             UPDATE drafts SET draft_status = 'ended' 
             WHERE draft_id = :draft_id AND draft_status = 'active'
             RETURNING draft_id
