@@ -3,16 +3,18 @@
 ## Drafting
 
 ### Search Players - /players/search/ (GET)
-Searches for players based on specified query parameters.
+Gets results according to specified search parameters and sort options. Provides player_id, player_name, position, team, age, standard_fantasy_points, and ppr_fantasy_points for each result.
 
 Query Parameters:
 
 - `player_name` (optional): The name of the player.
+- `year`: (optional): The year of the player season. Possible Values: `all`, `2023`, `2022`, `2021`, `2020`, `2019`. Default: `all`.
+- `age`: (optional): The age of the player during a given player season.
 - `position` (optional): The position of the player.
 - `team` (optional): The team of the player.
-- `search_page` (optional): The page number of the search results.
-- `sort_col` (optional): The column to sort the results by. Possible values: `player_name`, `position`, `team`, `age`, `standard_fantasy_points`, `ppr_fantasy_points`. Default: `ppr_fantasy_points`.
+- `sort_col` (optional): The column to sort the results by. Possible values: `player_name`, `year`, `age`, `position`, `team`, `standard_fantasy_points`, `ppr_fantasy_points`. Default: `ppr_fantasy_points`.
 - `sort_order` (optional): The sort order of the results. Possible values: `asc` (ascending), `desc` (descending). Default: `desc`.
+- `search_page` (optional): The page number of the search results.
 
 Response:
 
@@ -23,29 +25,53 @@ The API returns a JSON object with the following structure:
 - `results`: An array of objects, each representing a player. Each player object has the following properties:
     - `player_id`: An string that represents the unique identifier of the player.
     - `player_name`: A string that represents the name of the player.
+    - `year`: An integer value that represents the year of the player season.
+    - `age`: An integer value that represents the age of the player.
     - `position`: A string that represents the position of the player.
     - `team`: A string that represents the team of the player.
-    - `age`: An integer value that represents the age of the player.
     - `standard_fantasy_points`: An integer value that represents the amount of standard fantasy points the player accrued in the season.
     - `ppr_fantasy_points`: An integer value that represents the amount of ppr fantasy points the player accrued in the season.
 
-### Get Player Statistics - /players/{player_id}/ (GET) - Retrieves detailed statistics for a specified player.
+### Get Player Statistics - /players/{player_id}/ (GET) - Gets all player statistics for all seasons for the specified player.
 
 Response:
 ~~~
 {
-	“player_stats”: {
-		“history”: “array”
-	}
+	"player_id": "string"
+    	"seasons":
+		[
+			"year": "integer"
+	                "age": "integer"
+	                "position": "string"
+	                "team": "string"
+	                "games_played": "integer"
+	                "games_started": "integer"
+	                "passing_yards": "integer"
+	                "passing_tds": "integer"
+	                "interceptions": "integer"
+	                "rushing_atts": "integer"
+	                "rushing_yards": "integer"
+	                "rushing_tds": "integer"
+	                "targets": "integer"
+	                "receptions": "integer"
+	                "receiving_yards": "integer"
+	                "receiving_tds": "integer"
+	                "fumbles": "integer"
+	                "fumbles_lost": "integer"
+	                "two_point_conversions_passing": "integer"
+	                "two_point_conversions": "integer"
+	                "fantasy_points_standard_10": "float"
+	                "fantasy_points_ppr_10": "float"
+		]
 }
 ~~~
 
-### Draft Player - /players/{player_id}/draft (POST) - Draft a player to a team.
+### Draft Player - /players/{player_id}/draft (POST) - Drafts a player to a team. The player must be available, it must be the team's pick, and the player pick must not violate minimum and maximum position restraints for a roster.
 
 Request:
 ~~~
 {
-	"team_id": "string"
+	"team_id": "integer"
 }
 ~~~
 
@@ -56,7 +82,7 @@ Response:
 }
 ~~~
 
-### Change Team Name - /teams/{team_id}/ (PUT) - Change a specified team’s name.
+### Update Team Name - /teams/{team_id}/ (PUT) - Updates the name of a team based on the team_id.
 
 Request:
 ~~~
@@ -72,7 +98,7 @@ Response:
 }
 ~~~
 
-### Get Team - /teams/{team_id}/ (GET) - Get all selections for a team.
+### Get Team - /teams/{team_id}/ (GET) - Retrieves detailed information about a team's selections, including the draft positions, player positions, and names of players selected.
 
 Response:
 ~~~
@@ -87,7 +113,8 @@ Response:
 
 ## Joining/Creating Drafts
 
-### Create Draft Room - /drafts/ (POST) - Creates a new draft room, joins the draft room, and creates a team for that user
+### Create Draft Room - /drafts/ (POST) - Creates a draft room. Assigns the draft's type, name, and size. Also sets the positional requirements and overall number of roster positions.
+
 
 Request:
 ~~~
@@ -95,23 +122,19 @@ Request:
 	"draft_type": "string",
 	"draft_name": "string",
 	"draft_size": "int",
-	"draft_length": "int",
-	"roster_positions": "list[RosterPosition]" #Format: [position_name, min, max]
-	"flex_spots": "int",
+	"roster_positions": "list[RosterPosition]"
 	"roster_size": "int",
-	"team_name": "string",
-	"user_name": "string"
 }
 ~~~
 
 Response:
 ~~~
 {
- 	“team_id": "string"
+ 	“team_id": "integer"
 }
 ~~~
 
-### Join Draft Room - /drafts/{draft_id}/join (POST) - Joins a draft room and creates a team for that user. 
+### Join Draft Room - /drafts/{draft_id}/join (POST) - Adds a team to a specific draft. Assigns the team's initial name and the name of the user.
 
 Request:
 ~~~
@@ -124,28 +147,26 @@ Request:
 Response:
 ~~~
 {
-	"team_id": "string"
+	"team_id": "integer"
 }
 ~~~
 
-### Get Draft Rooms - /drafts/ (GET) - Returns list of all public drafts that have been created but have not been started.
+### Get Draft Rooms - /drafts/ (GET) - Retrieves all available drafts that have not yet been started. Acts as a list of drafts that are able to be joined.
 
 Response:
 ~~~
-[	// e.g. list of draft room info defined here
+[
 	{	
 		“draft_id”: “string”
 		“draft_name”: “string”,
 		“draft_type”: “string”,
 		“draft_size”: “integer”,
 		“roster_size”: “integer”,
-		“draft_length”: “integer”,
-		“flex_spots”: “integer”
 	}
 ]
 ~~~
 
-### Start Draft - /drafts/{draft_id}/start (PUT) - start a pending draft
+### Start Draft - /drafts/{draft_id}/start (PUT) - Starts the drafting process for a specified draft. This process also randomly assigns the draft order for all users in the draft.
 
 Response:
 ~~~
@@ -154,7 +175,7 @@ Response:
 }
 ~~~
 
-### Pause Draft - /drafts/{dratf_id}/pause (PUT) - pause a started draft
+### Pause Draft - /drafts/{dratf_id}/pause (PUT) - Changes the status of a specified draft from active to paused.
 
 Response:
 ~~~
@@ -163,7 +184,7 @@ Response:
 }
 ~~~
 
-### Resume Draft - /drafts/{dratf_id}/resume (PUT) - resume a paused draft
+### Resume Draft - /drafts/{dratf_id}/resume (PUT) - Changes the status of a specified draft from paused to active.
 
 Response:
 ~~~
@@ -172,7 +193,7 @@ Response:
 }
 ~~~
 
-### End Draft - /drafts/{dratf_id}/end (PUT) - end a started or resumed draft
+### End Draft - /drafts/{dratf_id}/end (PUT) - Ends the drafting process by changing the status of a specified draft from active to ended. An ended draft cannot be resumed.
 
 Response:
 ~~~
@@ -181,11 +202,17 @@ Response:
 }
 ~~~
 
-### Draft Player - /players/{player_id}/draft (POST) - draft a player to a team if: the draft is active, it is the team's turn to pick, the player is available, and the player selection does not violate maximum and minimum requirements
+### Get Draft Picks - /drafts/{dratf_id}/picks (GET) - Returns a list of all selections made in the specified draft.
 
 Response:
 ~~~
 {
-	"message": "Player drafted successfully"
+	[
+		"when_selected": "integer"
+		"player_id": "string"
+		"position": "string"
+		"team_name": "string"
+		"team_id": "integer"
+	]
 }
 ~~~
