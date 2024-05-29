@@ -238,7 +238,7 @@ def draft_player(player_id: str, request: DraftPlayerRequest):
         draft_info = connection.execute(sqlalchemy.text("""
             SELECT teams.draft_id, drafts.draft_status, teams.draft_position, drafts.roster_size FROM teams
             JOIN drafts ON teams.draft_id = drafts.draft_id
-            WHERE teams.team_id = :team_id
+            WHERE teams.team_id = :team_id FOR UPDATE
         """), {'team_id': request.team_id}).mappings().fetchone()
 
         if not draft_info:
