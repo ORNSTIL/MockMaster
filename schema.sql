@@ -7,7 +7,6 @@ create table
     draft_type text null,
     roster_size integer null,
     draft_size integer null,
-    draft_length integer null,
     draft_status text null default 'pending'::text,
     constraint drafts_pkey primary key (draft_id),
     constraint drafts_draft_id_key unique (draft_id)

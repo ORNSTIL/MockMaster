@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Path
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from src import database as db
 import sqlalchemy
@@ -35,17 +35,18 @@ def get_team(team_id: int):
     Retrieves detailed information about a team's selections, including the draft positions, player positions, and names of players selected.
     """
     with db.engine.begin() as connection:
-        team_info = connection.execute(sqlalchemy.text(""" SELECT when_selected, position, player_name 
-                                                        FROM selections
-                                                        JOIN players on selections.player_id = players.player_id
-                                                        JOIN stats on players.player_id = stats.player_id
-                                                        WHERE selections.team_id = :team_id
-                                                        ORDER BY when_selected asc 
-                                                       """),
-                                                    {"team_id": team_id})
-    team = []
-    for row in team_info:
-        team.append({"selection": row.when_selected, "position": row.position, "player": row.player_name})
+        team_info = connection.execute(sqlalchemy.text("""
+            SELECT when_selected, position, player_name 
+            FROM selections
+            JOIN players on selections.player_id = players.player_id
+            JOIN stats on players.player_id = stats.player_id
+            WHERE selections.team_id = :team_id
+            ORDER BY when_selected ASC 
+            """),{"team_id": team_id})
+        
+        team = []
+        for row in team_info:
+            team.append({"selection": row.when_selected, "position": row.position, "player": row.player_name})
         
     return team
 

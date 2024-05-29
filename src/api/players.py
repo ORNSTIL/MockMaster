@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Path
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from enum import Enum
 import sqlalchemy
@@ -339,3 +339,4 @@ def draft_player(player_id: str, request: DraftPlayerRequest):
             """), {'draft_id': draft_info['draft_id']})
 
         return {"message": "Player drafted successfully"}
+
