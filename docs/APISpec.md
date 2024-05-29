@@ -181,7 +181,7 @@ Response:
 }
 ~~~
 
-### Draft Player - /players/{player_id}/draft (POST) - draft a player to a team if: the draft is activev, it is the team's turn to pick, the player is available, and the player selection does not violate maximum and minimum requirements
+### Draft Player - /players/{player_id}/draft (POST) - draft a player to a team if: the draft is active, it is the team's turn to pick, the player is available, and the player selection does not violate maximum and minimum requirements
 
 Response:
 ~~~
