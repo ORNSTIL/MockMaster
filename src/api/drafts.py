@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from src.api import auth
 import sqlalchemy
@@ -20,11 +20,8 @@ class DraftRequest(BaseModel):
     draft_type: str
     draft_name: str
     draft_size: int
-    draft_length: int
-    roster_positions: list[RosterPosition] #Format: [position_name, min, max]
+    roster_positions: list[RosterPosition]
     roster_size: int
-    team_name: str
-    user_name: str
 
 class JoinDraftRequest(BaseModel):
     team_name: str
@@ -32,9 +29,14 @@ class JoinDraftRequest(BaseModel):
 
 @router.post("/{draft_id}/join")
 def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
+    """
+    Adds a team to a specific draft. Assigns the team's initial name and the name of the user.
+    """
     with db.engine.begin() as connection:
         # Check if draft exists, is not full, and is in a 'pending' status
         draft = connection.execute(sqlalchemy.text(""" 
+            SELECT pg_advisory_lock(:id) FROM drafts WHERE draft_id = :id;
+                                                   
             SELECT draft_size FROM drafts
             WHERE draft_id = :id AND draft_status = 'pending'
         """), {"id": draft_id}).fetchone()
@@ -57,23 +59,24 @@ def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
             RETURNING team_id
         """), {"id": draft_id, "team": join_request.team_name, "user": join_request.user_name}).scalar_one()
 
-    print(f"Team ID : {team_id}")
-
     return {"team_id": team_id}
+
 
 @router.post("/")
 def create_draft_room(draft_request: DraftRequest):
+    """
+    Creates a draft room. Assigns the draft's type, name, and size. Also sets the positional requirements and overall number of roster positions.
+    """
     with db.engine.begin() as connection:
-        # update database
-        id_sql = sqlalchemy.text("""INSERT INTO drafts (draft_name, draft_type, roster_size, draft_size, draft_length)
-                                                VALUES (:name, :type, :rsize, :dsize, :dlength)
-                                                RETURNING draft_id
-                                                """)
+        id_sql = sqlalchemy.text("""
+            INSERT INTO drafts (draft_name, draft_type, roster_size, draft_size)
+            VALUES (:name, :type, :rsize, :dsize)
+            RETURNING draft_id
+            """)
         id_options = {"name": draft_request.draft_name,
-                                                     "type": draft_request.draft_type,
-                                                    "rsize": draft_request.roster_size,
-                                                    "dsize": draft_request.draft_size,
-                                                    "dlength": draft_request.draft_length}
+                      "type": draft_request.draft_type,
+                      "rsize": draft_request.roster_size,
+                      "dsize": draft_request.draft_size}
         id = connection.execute(id_sql, id_options).scalar_one()
         
         # create roster positions dictionary
@@ -82,29 +85,25 @@ def create_draft_room(draft_request: DraftRequest):
             pos_reqs.append({"id": id, "pos": pos.position, "min": pos.min_num, "max": pos.max_num})
 
         # update database with position requirements
-        connection.execute(sqlalchemy.text("""INSERT INTO position_requirements (draft_id, position, min, max)
-                                            VALUES (:id, :pos, :min, :max)"""), pos_reqs)
-        
-        # update database with user
-        connection.execute(sqlalchemy.text("""INSERT INTO teams (draft_id, team_name, user_name)
-                                            VALUES (:id, :team, :user)"""),
-                                            {"id": id, "team": draft_request.team_name, "user": draft_request.user_name})
+        connection.execute(sqlalchemy.text("""
+            INSERT INTO position_requirements (draft_id, position, min, max)
+            VALUES (:id, :pos, :min, :max)"""), pos_reqs)
 
-    # print id for testing
-    print(f"Draft ID : {id}")
-
-    # return id
     return {"draft_id" : id}
+
 
 @router.get("/")
 def get_draft_rooms():
+    """
+    Retrieves all available drafts that have not yet been started. Acts as a list of drafts that are able to be joined.
+    """
     with db.engine.begin() as connection:
-        # query database
-        draft_rooms = connection.execute(sqlalchemy.text("""SELECT draft_id, draft_name, draft_type, draft_size, roster_size, draft_length
-                                                            FROM drafts
-                                                            WHERE draft_status = 'pending'""")).mappings().fetchall()
+        draft_rooms = connection.execute(sqlalchemy.text("""
+            SELECT draft_id, draft_name, draft_type, draft_size, roster_size, draft_length
+            FROM drafts
+            WHERE draft_status = 'pending'
+            """)).mappings().fetchall()
         
-        # transform result into desired format
         draft_rooms_list = [
             {"draft_id": room['draft_id'],
              "draft_name": room['draft_name'],
@@ -115,23 +114,25 @@ def get_draft_rooms():
             for room in draft_rooms
         ]
 
-    # print draft_rooms_list for testing
-    print(f"Draft Room List : {draft_rooms_list}")
-
-    # return draft_rooms_list
     return draft_rooms_list
+
 
 @router.put("/{draft_id}/start")
 def start_draft(draft_id: int):
+    """
+    Starts the drafting process for a specified draft. This process also randomly assigns the draft order for all users in the draft.
+    """
     with db.engine.begin() as connection:
         # Ensure the draft is in 'pending' state and count the number of teams
         draft_info = connection.execute(sqlalchemy.text("""
+            SELECT pg_advisory_lock(:id) FROM drafts WHERE draft_id = :id;
+                                                        
             SELECT draft_status, COUNT(team_id) as team_count
             FROM drafts
             LEFT JOIN teams ON drafts.draft_id = teams.draft_id
             WHERE drafts.draft_id = :draft_id
             GROUP BY drafts.draft_status
-        """), {'draft_id': draft_id}).fetchone()
+            """), {'draft_id': draft_id}).fetchone()
 
         if (not draft_info) or (draft_info.draft_status != 'pending'):
             raise HTTPException(status_code=404, detail="Draft not found or not in a pending state")
@@ -144,53 +145,58 @@ def start_draft(draft_id: int):
         random.shuffle(draft_positions)
 
         # Assign random draft position to each team in draft, update respectively in teams db
-        assign_draft_positions(draft_positions, draft_id)
-
-        # Update the draft status to 'active'
-        connection.execute(sqlalchemy.text("""
-            UPDATE drafts SET draft_status = 'active'
-            WHERE draft_id = :draft_id
-        """), {'draft_id': draft_id})
-
-    return {"success": True, "message": "Draft started and draft positions assigned randomly"}
-
-def assign_draft_positions(draft_positions: list, draft_id: int):
-    with db.engine.begin() as connection:
         # Fetch team IDs to update their draft positions
         teams = connection.execute(sqlalchemy.text("""
             SELECT team_id FROM teams WHERE draft_id = :draft_id
-        """), {'draft_id': draft_id}).fetchall()
+            """), {'draft_id': draft_id}).fetchall()
 
         # Assign random draft positions to each team
         for team, position in zip(teams, draft_positions):
             connection.execute(sqlalchemy.text("""
                 UPDATE teams SET draft_position = :position
                 WHERE team_id = :team_id
-            """), {'position': position, 'team_id': team.team_id})
-    return
+                """), {'position': position, 'team_id': team.team_id})
+
+        # Update the draft status to 'active'
+        connection.execute(sqlalchemy.text("""
+            UPDATE drafts SET draft_status = 'active'
+            WHERE draft_id = :draft_id
+            """), {'draft_id': draft_id})
+
+    return {"success": True, "message": "Draft started and draft positions assigned randomly"}
+
 
 @router.put("/{draft_id}/pause")
 def pause_draft(draft_id: int):
+    """
+    Changes the status of a specified draft from active to paused.
+    """
     with db.engine.begin() as connection:
-        # update database
         result = connection.execute(sqlalchemy.text("""
+            SELECT pg_advisory_lock(:id) FROM drafts WHERE draft_id = :id;
+                                                    
             UPDATE drafts SET draft_status = 'paused' 
             WHERE draft_id = :draft_id AND draft_status = 'active'
             RETURNING draft_id
-        """), {'draft_id': draft_id})
+            """), {'draft_id': draft_id})
 
         # if there is no corresponding draft
         if result.rowcount == 0:
             raise HTTPException(status_code=404, detail="Draft not found or not active")
 
-    # return status
-    return "OK"
+    return {"success": True, "message": "Draft paused successfully"}
+
 
 @router.put("/{draft_id}/resume")
 def resume_draft(draft_id: int):
+    """
+    Changes the status of a specified draft from paused to active.
+    """
     with db.engine.begin() as connection:
         # Update draft status to 'active' only if it is currently 'paused'
         result = connection.execute(sqlalchemy.text("""
+            SELECT pg_advisory_lock(:id) FROM drafts WHERE draft_id = :id;
+                                                    
             UPDATE drafts 
             SET draft_status = 'active' 
             WHERE draft_id = :draft_id AND draft_status = 'paused'
@@ -206,8 +212,13 @@ def resume_draft(draft_id: int):
 
 @router.put("/{draft_id}/end")
 def end_draft(draft_id: int):
+    """
+    Ends the drafting process by changing the status of a specified draft from active to ended. An ended draft cannot be resumed.
+    """
     with db.engine.begin() as connection:
         result = connection.execute(sqlalchemy.text("""
+            SELECT pg_advisory_lock(:id) FROM drafts WHERE draft_id = :id;
+            
             UPDATE drafts SET draft_status = 'ended' 
             WHERE draft_id = :draft_id AND draft_status = 'active'
             RETURNING draft_id
@@ -216,35 +227,35 @@ def end_draft(draft_id: int):
         if result.rowcount == 0:
             raise HTTPException(status_code=404, detail="Draft not found or not in an endable state")
 
-    return {"success": True}
+    return {"success": True, "message": "Draft ended successfully"}
 
 
 @router.get("/{draft_id}/picks")
 def get_draft_picks(draft_id: int):
+    """
+    Returns a list of all selections made in the specified draft.
+    """
     with db.engine.begin() as connection:
-        try:
-            get_draft = connection.execute(sqlalchemy.text("""
-                SELECT selections.when_selected, selections.player_id, stats.position, teams.team_name, teams.team_id
-                FROM selections
-                JOIN teams ON selections.team_id = teams.team_id
-                JOIN players ON selections.player_id = players.player_id
-                JOIN stats ON players.player_id = stats.player_id
-                WHERE teams.draft_id = :draft_id
-                ORDER BY selections.when_selected ASC
-            """), {'draft_id': draft_id}).mappings().fetchall()
-            
-            if not get_draft:
-                raise HTTPException(status_code=404, detail="No picks found for the given draft ID")
-            
-            picks = [{
-                "when_selected": row['when_selected'],
-                "player_id": row['player_id'],
-                "position": row['position'],
-                "team_name": row['team_name'],
-                "team_id": row['team_id']
-            } for row in get_draft]
-
-            return picks
+        get_draft = connection.execute(sqlalchemy.text("""
+            SELECT selections.when_selected, selections.player_id, stats.position, teams.team_name, teams.team_id
+            FROM selections
+            JOIN teams ON selections.team_id = teams.team_id
+            JOIN players ON selections.player_id = players.player_id
+            JOIN stats ON players.player_id = stats.player_id
+            WHERE teams.draft_id = :draft_id
+            ORDER BY selections.when_selected ASC
+        """), {'draft_id': draft_id}).mappings().fetchall()
         
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+        if not get_draft:
+            raise HTTPException(status_code=404, detail="No picks found for the given draft ID")
+        
+        picks = [{
+            "when_selected": row['when_selected'],
+            "player_id": row['player_id'],
+            "position": row['position'],
+            "team_name": row['team_name'],
+            "team_id": row['team_id']
+        } for row in get_draft]
+
+    return picks
+
