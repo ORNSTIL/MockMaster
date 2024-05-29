@@ -4,7 +4,6 @@ from src.api import auth
 import sqlalchemy
 from src import database as db
 import random
-import time
 
 router = APIRouter(
     prefix="/drafts",
@@ -139,8 +138,6 @@ def start_draft(draft_id: int):
             GROUP BY drafts.draft_status
         """), {'draft_id': draft_id}).fetchone()
         
-        time.sleep(20)
-
         if (not draft_lock) or (draft_lock.draft_status != 'pending'):
             raise HTTPException(status_code=404, detail="Draft not found or not in a pending state")
 
