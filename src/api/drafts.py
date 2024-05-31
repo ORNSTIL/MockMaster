@@ -154,27 +154,20 @@ def start_draft(draft_id: int):
                 if draft_info.team_count == 0:
                     raise HTTPException(status_code=400, detail="Cannot start a draft with no teams")
 
-                # Generate random draft positions
-                draft_positions = list(range(1, draft_info.team_count + 1))
-                random.shuffle(draft_positions)
-
                 # Assign random draft position to each team in draft, update respectively in teams db
-                # Fetch team IDs to update their draft positions
-                teams = connection.execute(sqlalchemy.text("""
-                    SELECT team_id FROM teams WHERE draft_id = :draft_id
-                """), {'draft_id': draft_id}).fetchall()
-
-                # Assign random draft positions to each team
-                for team, position in zip(teams, draft_positions):
-                    connection.execute(sqlalchemy.text("""
-                        UPDATE teams SET draft_position = :position
-                        WHERE team_id = :team_id
-                    """), {'position': position, 'team_id': team.team_id})
-
                 # Update the draft status to 'active'
                 connection.execute(sqlalchemy.text("""
+                    WITH teams_list AS (
+                        SELECT team_id, ROW_NUMBER() OVER (ORDER BY random()) as position_num
+                        FROM teams 
+                        WHERE draft_id = :draft_id
+                    )
+                    UPDATE teams SET draft_position = teams_list.position_num
+                    FROM teams_list
+                    WHERE teams.team_id = teams_list.team_id;
+                                                   
                     UPDATE drafts SET draft_status = 'active'
-                    WHERE draft_id = :draft_id
+                    WHERE draft_id = :draft_id;
                 """), {'draft_id': draft_id})
     except:
         raise Exception(f"Could not start draft with Draft ID ${draft_id}. Please try again.")
