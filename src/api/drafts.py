@@ -25,8 +25,8 @@ class DraftRequest(BaseModel):
     roster_size: Literal[8, 10, 12]
     
 class JoinDraftRequest(BaseModel):
-    team_name: str
-    user_name: str
+    team_name: str = Field(..., min_length=3, max_length=14)
+    user_name: str = Field(..., min_length=3, max_length=14)
 
 @router.post("/{draft_id}/join")
 def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
