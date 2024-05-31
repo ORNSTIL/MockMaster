@@ -69,8 +69,8 @@ def create_draft_room(draft_request: DraftRequest):
     """
     Creates a draft room. Assigns the draft's type, name, and size. Also sets the positional requirements and overall number of roster positions.
     """
-    try:
-        with db.engine.begin() as connection:
+    with db.engine.begin() as connection:
+        try:
             id_sql = sqlalchemy.text("""
                 INSERT INTO drafts (draft_name, draft_type, roster_size, draft_size)
                 VALUES (:name, :type, :rsize, :dsize)
@@ -91,8 +91,8 @@ def create_draft_room(draft_request: DraftRequest):
             connection.execute(sqlalchemy.text("""
                 INSERT INTO position_requirements (draft_id, position, min, max)
                 VALUES (:id, :pos, :min, :max)"""), pos_reqs)
-    except:
-        raise Exception("Failed to create draft room. Please try again.")
+        except:
+            raise Exception("Failed to create draft room. Please try again.")
     
     return {"draft_id" : id}
 
