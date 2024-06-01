@@ -19,14 +19,16 @@ def update_team_name(team_id: int, update_request: TeamUpdateRequest):
     """
     Updates the name of a team based on the team_id.
     """
-    with db.engine.begin() as connection:
-        update_team = connection.execute(sqlalchemy.text("""
-            UPDATE teams SET team_name = :team_name WHERE team_id = :team_id
-        """), {"team_name": update_request.team_name, "team_id": team_id})
+    try:
+        with db.engine.begin() as connection:
+            update_team = connection.execute(sqlalchemy.text("""
+                UPDATE teams SET team_name = :team_name WHERE team_id = :team_id
+            """), {"team_name": update_request.team_name, "team_id": team_id})
         
         if update_team.rowcount == 0:
             raise HTTPException(status_code=404, detail="Team not found")
-
+    except:
+        raise HTTPException(status_code=400, detail=f"Could not change name for team with Team ID {team_id}. Please try again.")
     return {"message": "Team name updated successfully"}
 
 
@@ -35,19 +37,22 @@ def get_team(team_id: int):
     """
     Retrieves detailed information about a team's selections, including the draft positions, player positions, and names of players selected.
     """
-    with db.engine.begin() as connection:
-        team_info = connection.execute(sqlalchemy.text("""
-            SELECT when_selected, position, player_name 
-            FROM selections
-            JOIN players on selections.player_id = players.player_id
-            JOIN stats on players.player_id = stats.player_id
-            WHERE selections.team_id = :team_id
-            ORDER BY when_selected ASC 
-            """),{"team_id": team_id})
+    try:
+        with db.engine.begin() as connection:
+            team_info = connection.execute(sqlalchemy.text("""
+                SELECT when_selected, position, player_name 
+                FROM selections
+                JOIN players on selections.player_id = players.player_id
+                JOIN stats on players.player_id = stats.player_id
+                WHERE selections.team_id = :team_id
+                ORDER BY when_selected ASC 
+                """),{"team_id": team_id})
         
         team = []
         for row in team_info:
             team.append({"selection": row.when_selected, "position": row.position, "player": row.player_name})
+    except:
+        raise HTTPException(status_code=400, detail=f"Could not get team with Team ID {team_id}. Please try again.")
         
     return team
 
