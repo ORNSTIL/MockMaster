@@ -59,7 +59,7 @@ def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
                     RETURNING team_id
                 """), {"id": draft_id, "team": join_request.team_name, "user": join_request.user_name}).scalar_one()
     except:
-        raise Exception(f"Failed to Join Draft room with Draft ID: ${draft_id}. Please try again.")
+        raise HTTPException(status_code=400, detail=f"Failed to Join Draft room with Draft ID: ${draft_id}. Please try again.")
     
     return {"team_id": team_id}
 
@@ -69,8 +69,8 @@ def create_draft_room(draft_request: DraftRequest):
     """
     Creates a draft room. Assigns the draft's type, name, and size. Also sets the positional requirements and overall number of roster positions.
     """
-    with db.engine.begin() as connection:
-        try:
+    try:
+        with db.engine.begin() as connection:
             id_sql = sqlalchemy.text("""
                 INSERT INTO drafts (draft_name, draft_type, roster_size, draft_size)
                 VALUES (:name, :type, :rsize, :dsize)
@@ -91,8 +91,8 @@ def create_draft_room(draft_request: DraftRequest):
             connection.execute(sqlalchemy.text("""
                 INSERT INTO position_requirements (draft_id, position, min, max)
                 VALUES (:id, :pos, :min, :max)"""), pos_reqs)
-        except:
-            raise Exception("Failed to create draft room. Please try again.")
+    except:
+        raise HTTPException(status_code=400, detail="Failed to create draft room. Please try again.")
     
     return {"draft_id" : id}
 
@@ -120,7 +120,7 @@ def get_draft_rooms():
                 for room in draft_rooms
             ]
     except:
-        raise Exception("Could not retrieve pending drafts. Please try again.")
+        raise HTTPException(status_code=400, detail="Could not retrieve pending drafts. Please try again.")
 
     return draft_rooms_list
 
@@ -170,7 +170,7 @@ def start_draft(draft_id: int):
                     WHERE draft_id = :draft_id;
                 """), {'draft_id': draft_id})
     except:
-        raise Exception(f"Could not start draft with Draft ID ${draft_id}. Please try again.")
+        raise HTTPException(status_code=400, detail=f"Could not start draft with Draft ID ${draft_id}. Please try again.")
 
     return {"success": True, "message": "Draft started and draft positions assigned randomly"}
 
@@ -193,7 +193,7 @@ def pause_draft(draft_id: int):
                 if result.rowcount == 0:
                     raise HTTPException(status_code=404, detail="Draft not found or not active")
     except:
-        raise Exception(f"Could not pause draft with Draft ID {draft_id}. Please try again.")
+        raise HTTPException(status_code=400, detail=f"Could not pause draft with Draft ID {draft_id}. Please try again.")
 
     return {"success": True, "message": "Draft paused successfully"}
 
@@ -218,7 +218,7 @@ def resume_draft(draft_id: int):
                 if result.rowcount == 0:
                     raise HTTPException(status_code=404, detail="Draft not found or not in a paused state")
     except:
-        raise Exception(f"Could not resume draft with Draft ID {draft_id}. Please try again.")
+        raise HTTPException(status_code=400, detail=f"Could not resume draft with Draft ID {draft_id}. Please try again.")
 
     return {"success": True, "message": "Draft resumed successfully"}
 
@@ -240,7 +240,7 @@ def end_draft(draft_id: int):
                 if result.rowcount == 0:
                     raise HTTPException(status_code=404, detail="Draft not found or not in an endable state")
     except:
-        raise Exception(f"Could not end draft with Draft ID {draft_id}. Please try again.")
+        raise HTTPException(status_code=400, detail=f"Could not end draft with Draft ID {draft_id}. Please try again.")
 
     return {"success": True, "message": "Draft ended successfully"}
 
@@ -273,7 +273,7 @@ def get_draft_picks(draft_id: int):
                 "team_id": row['team_id']
             } for row in get_draft]
     except:
-        raise Exception(f"Could not get all draft selections for draft with Draft ID {draft_id}. Please try again.")
+        raise HTTPException(status_code=400, detail=f"Could not get all draft selections for draft with Draft ID {draft_id}. Please try again.")
 
     return picks
 
