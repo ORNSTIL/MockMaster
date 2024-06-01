@@ -4,6 +4,9 @@ from src.api import auth
 import sqlalchemy
 from src import database as db
 import random
+from pydantic import BaseModel, Field, conint
+from typing import Literal
+from enum import Enum
 
 router = APIRouter(
     prefix="/drafts",
@@ -11,21 +14,19 @@ router = APIRouter(
     dependencies=[Depends(auth.get_api_key)],
 )
 
-class RosterPosition(BaseModel):
-    position: str
-    min_num: int
-    max_num: int
+class DraftType(str, Enum):
+    PPR = 'PPR'
+    Standard = 'Standard'
 
 class DraftRequest(BaseModel):
-    draft_type: str
-    draft_name: str
-    draft_size: int
-    roster_positions: list[RosterPosition]
-    roster_size: int
-
+    draft_type: DraftType
+    draft_name: str = Field(..., min_length=3, max_length=30)
+    draft_size: conint(ge=2, le=16)
+    roster_size: Literal[8, 10, 12]
+    
 class JoinDraftRequest(BaseModel):
-    team_name: str
-    user_name: str
+    team_name: str = Field(..., min_length=3, max_length=14)
+    user_name: str = Field(..., min_length=3, max_length=14)
 
 @router.post("/{draft_id}/join")
 def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
@@ -67,8 +68,16 @@ def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
 @router.post("/")
 def create_draft_room(draft_request: DraftRequest):
     """
-    Creates a draft room. Assigns the draft's type, name, and size. Also sets the positional requirements and overall number of roster positions.
+    Creates a draft room. Assigns the draft's type, name, and size. Also sets the positional requirements based on the roster size.
     """
+
+    positional_requirements = {
+        8: {'QB': (1, 3), 'RB': (1, 3), 'WR': (1, 3), 'TE': (1, 3)},
+        10: {'QB': (1, 4), 'RB': (1, 4), 'WR': (1, 4), 'TE': (1, 4)},
+        12: {'QB': (2, 4), 'RB': (2, 4), 'WR': (2, 4), 'TE': (2, 4)}
+    }
+    requirements = positional_requirements[draft_request.roster_size]
+
     try:
         with db.engine.begin() as connection:
             id_sql = sqlalchemy.text("""
@@ -76,25 +85,18 @@ def create_draft_room(draft_request: DraftRequest):
                 VALUES (:name, :type, :rsize, :dsize)
                 RETURNING draft_id
                 """)
-            id_options = {"name": draft_request.draft_name,
-                        "type": draft_request.draft_type,
-                        "rsize": draft_request.roster_size,
-                        "dsize": draft_request.draft_size}
-            id = connection.execute(id_sql, id_options).scalar_one()
+            id_options = {"name": draft_request.draft_name, "type": draft_request.draft_type, "rsize": draft_request.roster_size, "dsize": draft_request.draft_size}
+            draft_id = connection.execute(id_sql, id_options).scalar_one()
             
-            # create roster positions dictionary
-            pos_reqs = []
-            for pos in draft_request.roster_positions:
-                pos_reqs.append({"id": id, "pos": pos.position, "min": pos.min_num, "max": pos.max_num})
-
-            # update database with position requirements
+            pos_reqs = [{'draft_id': draft_id, 'position': key, 'min': val[0], 'max': val[1]} for key, val in requirements.items()]
+            
             connection.execute(sqlalchemy.text("""
                 INSERT INTO position_requirements (draft_id, position, min, max)
-                VALUES (:id, :pos, :min, :max)"""), pos_reqs)
+                VALUES (:draft_id, :position, :min, :max)"""), pos_reqs)
     except:
         raise HTTPException(status_code=400, detail="Failed to create draft room. Please try again.")
-    
-    return {"draft_id" : id}
+
+    return {"draft_id": draft_id}
 
 
 @router.get("/")

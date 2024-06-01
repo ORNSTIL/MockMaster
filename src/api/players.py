@@ -292,6 +292,9 @@ def draft_player(player_id: str, request: DraftPlayerRequest):
         """), {'team_id': request.team_id}).scalar_one()
         remaining_picks = draft_info['roster_size'] - total_selections
 
+        if remaining_picks <= 0:
+            raise HTTPException(status_code=409, detail="No remaining picks for this team")
+
         positions_needed = {}
         total_needed_picks = 0
         positions = connection.execute(sqlalchemy.text("""
@@ -331,12 +334,4 @@ def draft_player(player_id: str, request: DraftPlayerRequest):
             VALUES (:team_id, :player_id, :when_selected)
         """), {'team_id': request.team_id, 'player_id': player_id, 'when_selected': previous_picks + 1})
 
-        total_possible_picks = number_of_teams * draft_info['roster_size']
-        if previous_picks + 1 == total_possible_picks:
-            connection.execute(sqlalchemy.text("""
-                UPDATE drafts SET draft_status = 'ended'
-                WHERE draft_id = :draft_id
-            """), {'draft_id': draft_info['draft_id']})
-
         return {"message": "Player drafted successfully"}
-

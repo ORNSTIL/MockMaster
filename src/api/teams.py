@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from src import database as db
 import sqlalchemy
 from src.api import auth
+from pydantic import BaseModel, Field
 
 router = APIRouter(
     prefix="/teams",
@@ -11,7 +12,7 @@ router = APIRouter(
 )
 
 class TeamUpdateRequest(BaseModel):
-    team_name: str
+    team_name: str = Field(..., min_length=3, max_length=14)
 
 @router.put("/{team_id}/")
 def update_team_name(team_id: int, update_request: TeamUpdateRequest):
