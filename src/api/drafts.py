@@ -60,7 +60,7 @@ def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
                     RETURNING team_id
                 """), {"id": draft_id, "team": join_request.team_name, "user": join_request.user_name}).scalar_one()
     except:
-        raise HTTPException(status_code=400, detail=f"Failed to Join Draft room with Draft ID: ${draft_id}. Please try again.")
+        raise HTTPException(status_code=400, detail=f"Failed to Join Draft room with Draft ID {draft_id}. Please try again.")
     
     return {"team_id": team_id}
 
