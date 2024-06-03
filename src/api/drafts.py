@@ -36,7 +36,6 @@ def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
     try:
         with db.engine.connect().execution_options(isolation_level="SERIALIZABLE") as connection:
             with connection.begin():
-                # Check if draft exists, is not full, and is in a 'pending' status
                 draft = connection.execute(sqlalchemy.text("""                               
                     SELECT draft_size FROM drafts
                     WHERE draft_id = :id AND draft_status = 'pending'
