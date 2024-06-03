@@ -4,6 +4,7 @@ from src import database as db
 import sqlalchemy
 from src.api import auth
 from pydantic import BaseModel, Field
+from sqlalchemy import exc
 
 router = APIRouter(
     prefix="/teams",
@@ -27,7 +28,7 @@ def update_team_name(team_id: int, update_request: TeamUpdateRequest):
         
         if update_team.rowcount == 0:
             raise HTTPException(status_code=404, detail="Team not found")
-    except:
+    except exc.SQLAlchemyError:
         raise HTTPException(status_code=400, detail=f"Could not change name for team with Team ID {team_id}. Please try again.")
     return {"message": "Team name updated successfully"}
 
@@ -51,7 +52,7 @@ def get_team(team_id: int):
         team = []
         for row in team_info:
             team.append({"selection": row.when_selected, "position": row.position, "player": row.player_name})
-    except:
+    except exc.SQLAlchemyError:
         raise HTTPException(status_code=400, detail=f"Could not get team with Team ID {team_id}. Please try again.")
         
     return team

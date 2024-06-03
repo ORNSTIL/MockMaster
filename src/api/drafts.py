@@ -3,10 +3,10 @@ from pydantic import BaseModel
 from src.api import auth
 import sqlalchemy
 from src import database as db
-import random
 from pydantic import BaseModel, Field, conint
 from typing import Literal
 from enum import Enum
+from sqlalchemy import exc
 
 router = APIRouter(
     prefix="/drafts",
@@ -56,7 +56,7 @@ def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
                     VALUES (:id, :team, :user)
                     RETURNING team_id
                 """), {"id": draft_id, "team": join_request.team_name, "user": join_request.user_name}).scalar_one()
-    except:
+    except exc.SQLAlchemyError:
         raise HTTPException(status_code=400, detail=f"Failed to Join Draft room with Draft ID {draft_id}. Please try again.")
     
     return {"team_id": team_id}
@@ -90,7 +90,7 @@ def create_draft_room(draft_request: DraftRequest):
             connection.execute(sqlalchemy.text("""
                 INSERT INTO position_requirements (draft_id, position, min, max)
                 VALUES (:draft_id, :position, :min, :max)"""), pos_reqs)
-    except:
+    except exc.SQLAlchemyError:
         raise HTTPException(status_code=400, detail="Failed to create draft room. Please try again.")
 
     return {"draft_id": draft_id}
@@ -118,7 +118,7 @@ def get_draft_rooms():
                 "draft_length": room['draft_length']}
                 for room in draft_rooms
             ]
-    except:
+    except exc.SQLAlchemyError:
         raise HTTPException(status_code=400, detail="Could not retrieve pending drafts. Please try again.")
 
     return draft_rooms_list
@@ -165,7 +165,7 @@ def start_draft(draft_id: int):
                     UPDATE drafts SET draft_status = 'active'
                     WHERE draft_id = :draft_id;
                 """), {'draft_id': draft_id})
-    except:
+    except exc.SQLAlchemyError:
         raise HTTPException(status_code=400, detail=f"Could not start draft with Draft ID ${draft_id}. Please try again.")
 
     return {"success": True, "message": "Draft started and draft positions assigned randomly"}
@@ -187,7 +187,7 @@ def pause_draft(draft_id: int):
 
                 if result.rowcount == 0:
                     raise HTTPException(status_code=404, detail="Draft not found or not active")
-    except:
+    except exc.SQLAlchemyError:
         raise HTTPException(status_code=400, detail=f"Could not pause draft with Draft ID {draft_id}. Please try again.")
 
     return {"success": True, "message": "Draft paused successfully"}
@@ -210,7 +210,7 @@ def resume_draft(draft_id: int):
 
                 if result.rowcount == 0:
                     raise HTTPException(status_code=404, detail="Draft not found or not in a paused state")
-    except:
+    except exc.SQLAlchemyError:
         raise HTTPException(status_code=400, detail=f"Could not resume draft with Draft ID {draft_id}. Please try again.")
 
     return {"success": True, "message": "Draft resumed successfully"}
@@ -232,7 +232,7 @@ def end_draft(draft_id: int):
 
                 if result.rowcount == 0:
                     raise HTTPException(status_code=404, detail="Draft not found or not in an endable state")
-    except:
+    except exc.SQLAlchemyError:
         raise HTTPException(status_code=400, detail=f"Could not end draft with Draft ID {draft_id}. Please try again.")
 
     return {"success": True, "message": "Draft ended successfully"}
@@ -265,7 +265,7 @@ def get_draft_picks(draft_id: int):
                 "team_name": row['team_name'],
                 "team_id": row['team_id']
             } for row in get_draft]
-    except:
+    except exc.SQLAlchemyError:
         raise HTTPException(status_code=400, detail=f"Could not get all draft selections for draft with Draft ID {draft_id}. Please try again.")
 
     return picks
