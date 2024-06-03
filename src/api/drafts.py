@@ -45,7 +45,6 @@ def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
                 if not draft:
                     raise HTTPException(status_code=404, detail="Draft not found or not in a pending state")
 
-                # Count existing teams to ensure the draft is not full
                 team_count = connection.execute(sqlalchemy.text("""
                     SELECT COUNT(*) FROM teams WHERE draft_id = :id
                 """), {"id": draft_id}).scalar_one()
@@ -53,7 +52,6 @@ def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
                 if team_count >= draft.draft_size:
                     raise HTTPException(status_code=400, detail="Draft is already full")
 
-                # Insert the new team into the draft
                 team_id = connection.execute(sqlalchemy.text("""
                     INSERT INTO teams (draft_id, team_name, user_name)
                     VALUES (:id, :team, :user)
@@ -135,7 +133,6 @@ def start_draft(draft_id: int):
     try: 
         with db.engine.connect().execution_options(isolation_level="SERIALIZABLE") as connection:
             with connection.begin():
-                # Ensure the draft is in 'pending' state and count the number of teams
                 draft_lock = connection.execute(sqlalchemy.text("""
                     SELECT draft_status
                     FROM drafts
@@ -156,8 +153,6 @@ def start_draft(draft_id: int):
                 if draft_info.team_count == 0:
                     raise HTTPException(status_code=400, detail="Cannot start a draft with no teams")
 
-                # Assign random draft position to each team in draft, update respectively in teams db
-                # Update the draft status to 'active'
                 connection.execute(sqlalchemy.text("""
                     WITH teams_list AS (
                         SELECT team_id, ROW_NUMBER() OVER (ORDER BY random()) as position_num
@@ -191,7 +186,6 @@ def pause_draft(draft_id: int):
                     RETURNING draft_id
                     """), {'draft_id': draft_id})
 
-                # if there is no corresponding draft
                 if result.rowcount == 0:
                     raise HTTPException(status_code=404, detail="Draft not found or not active")
     except:
@@ -208,7 +202,6 @@ def resume_draft(draft_id: int):
     try:
         with db.engine.connect().execution_options(isolation_level="SERIALIZABLE") as connection:
             with connection.begin():
-                # Update draft status to 'active' only if it is currently 'paused'
                 result = connection.execute(sqlalchemy.text("""                                                    
                     UPDATE drafts 
                     SET draft_status = 'active' 
@@ -216,7 +209,6 @@ def resume_draft(draft_id: int):
                     RETURNING draft_id
                 """), {'draft_id': draft_id})
 
-                # If no draft is found or the draft is not in a paused state
                 if result.rowcount == 0:
                     raise HTTPException(status_code=404, detail="Draft not found or not in a paused state")
     except:
