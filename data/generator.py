@@ -12,11 +12,10 @@ import csv
 with open("fake/fake_drafts.csv", mode="w", newline="") as file:
     writer = csv.writer(file)
 
-    writer.writerow(["draft_id","draft_name","draft_type","roster_size","draft_size","draft_status"])
+    writer.writerow(["draft_name","draft_type","roster_size","draft_size","draft_status"])
 
     i = 1
     while i <= 8696:
-        draft_id = i
         draft_name = f"Fake Draft {i}"
         if i%2 == 0:
             draft_type = "PPR"
@@ -26,7 +25,7 @@ with open("fake/fake_drafts.csv", mode="w", newline="") as file:
         draft_size = 10
         draft_status = "completed"
         
-        writer.writerow([draft_id, draft_name, draft_type, roster_size, draft_size, draft_status])
+        writer.writerow([draft_name, draft_type, roster_size, draft_size, draft_status])
 
         i = i + 1
 
@@ -52,7 +51,7 @@ with open("fake/fake_position_requirements.csv", mode="w", newline="") as file:
 with open("fake/fake_teams.csv", mode="w", newline="") as file:
     writer = csv.writer(file)
 
-    writer.writerow(["team_id","team_name","user_name","draft_position","draft_id"])
+    writer.writerow(["team_name","user_name","draft_position","draft_id"])
 
     i = 1
     while i <= 8696:
@@ -64,7 +63,7 @@ with open("fake/fake_teams.csv", mode="w", newline="") as file:
             draft_position = j
             draft_id = i
         
-            writer.writerow([team_id, team_name, user_name, draft_position, draft_id])
+            writer.writerow([team_name, user_name, draft_position, draft_id])
 
             j = j + 1
         i = i + 1
