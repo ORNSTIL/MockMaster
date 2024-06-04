@@ -71,7 +71,7 @@ with open("fake/fake_teams.csv", mode="w", newline="") as file:
 
 # ids of players to be drafted (20 QB, 30 RB, 30WR, 20TE)
 player_ids = [
-    "JackLa00", "PresDa01", "WilsRu00", "WatDe00", "MahoPa00", "MurrKy00", "RodgAa00", "RyanMa00", "BreeDr00", "TannRy00",
+    "JackLa00", "PresDa01", "WilsRu00", "WatsDe00", "MahoPa00", "MurrKy00", "RodgAa00", "RyanMa00", "BreeDr00", "TannRy00",
     "WentCa00", "DarnSa00", "CarrDe02", "CousKi00", "AlleJo02", "MayfBa00", "KeenCa00", "RiddDe00", "WalkPh00", "BridTe00",
     "McCaCh01", "HenrDe00", "JoneAa00", "ElliEz00", "CookDa01", "ChubNi00", "IngrMa01", "EkelAu00", "CarsCh00", "BarkSa00",
     "MixoJo00", "GurlTo01", "DrakKe00", "MontDa01", "MichSo00", "FreeDe00", "HydeCa00", "JohnDu00", "MostRa00", "SandEm00",
