@@ -15,7 +15,7 @@ Data Distribution:
 - Stats: 3,247 rows*
 - Total rows across all tables: 1,004,487 rows
 
-While the number of teams in a draft can range anywhere from 2 to 16 and the number of roster positions from 8 to 12, it is safe to assume that our service will scale in the manner outlined above. In any drafting setting, selections should always be the most common transaction. Additionally, there will always be more selections than teams and teams than drafts. Given our implementation of position requirements, there will always be 4 position requirement entries for every draft. This leads us to the following ration, which is used for the calculation of rows listed above:
+While the number of teams in a draft can range anywhere from 2 to 16 and the number of roster positions from 8 to 12, it is safe to assume that our service will scale in the manner outlined above. In any drafting setting, selections should always be the most common transaction. Additionally, there will always be more selections than teams and teams than drafts. Given our implementation of position requirements, there will always be 4 position requirement entries for every draft. This leads us to the following ratio, which is used for the calculation of rows listed above:
 
 drafts : position_requirements : teams : selections = 1 : 4 : 10 : 100
 
