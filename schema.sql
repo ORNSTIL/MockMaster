@@ -94,7 +94,9 @@ create table
 -- 9) Click "Import Data"
 -- Now your local database will have all the necassary fantasy football player data for the 2019-2023 seasons
 
--- Part 3: Creating the materialized view for search players endpoint. 
+-- Part 3: Creating the materialized views. 
+
+-- Creating the materialized view for search players endpoint. 
 -- NOTE: Once the initial data is imported, the materialized view never needs to be updated.
 create materialized view
   public.player_points as
@@ -110,3 +112,15 @@ select
 from
   stats
   join players on stats.player_id = players.player_id;
+
+-- Creating the materialized view for draft players endpoint. 
+-- NOTE: Once the initial data is imported, the materialized view never needs to be updated.
+create materialized view
+  public.player_positions as
+select distinct
+  stats.player_id,
+  stats."position",
+  players.player_name
+from
+  stats
+  join players on players.player_id = stats.player_id;
