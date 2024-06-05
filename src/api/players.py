@@ -311,9 +311,10 @@ def draft_player(player_id: str, request: DraftPlayerRequest):
 
                 for pos in positions:
                     count = connection.execute(sqlalchemy.text("""
-                        SELECT COUNT(*) FROM selections
-                        JOIN stats ON selections.player_id = stats.player_id
-                        WHERE selections.team_id = :team_id AND stats.position = :position
+                        SELECT COUNT(*) 
+                        FROM player_positions
+                        JOIN selections ON selections.player_id = player_positions.player_id
+                        WHERE selections.team_id = :team_id AND player_positions.position = :position
                     """), {'team_id': request.team_id, 'position': pos['position']}).scalar_one()
         
                     needed = max(0, pos['min'] - count)
