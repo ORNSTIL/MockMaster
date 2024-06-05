@@ -252,16 +252,11 @@ def get_draft_picks(draft_id: int):
     try:
         with db.engine.begin() as connection:
             get_draft = connection.execute(sqlalchemy.text("""
-                WITH recent_stats AS (
-                    SELECT player_id, position, ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY year DESC) AS n
-                    FROM stats
-                )
-                SELECT selections.when_selected, selections.player_id, recent_stats.position, teams.team_name, teams.team_id
+                SELECT selections.when_selected, selections.player_id, player_positions.position, teams.team_name, teams.team_id
                 FROM selections
                 JOIN teams ON selections.team_id = teams.team_id
-                JOIN players ON selections.player_id = players.player_id
-                JOIN recent_stats ON players.player_id = recent_stats.player_id
-                WHERE teams.draft_id = :draft_id and recent_stats.n = 1
+                JOIN player_positions ON selections.player_id = player_positions.player_id
+                WHERE teams.draft_id = :draft_id
                 ORDER BY selections.when_selected ASC;
             """), {'draft_id': draft_id}).mappings().fetchall()
             
