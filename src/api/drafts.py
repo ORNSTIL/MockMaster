@@ -23,7 +23,7 @@ class DraftRequest(BaseModel):
     draft_name: str = Field(..., min_length=3, max_length=30)
     draft_size: conint(ge=2, le=16)
     roster_size: Literal[8, 10, 12]
-    
+
 class JoinDraftRequest(BaseModel):
     team_name: str = Field(..., min_length=3, max_length=14)
     user_name: str = Field(..., min_length=3, max_length=14)
@@ -33,6 +33,7 @@ def join_draft_room(draft_id: int, join_request: JoinDraftRequest):
     """
     Adds a team to a specific draft. Assigns the team's initial name and the name of the user.
     """
+
     try:
         with db.engine.connect().execution_options(isolation_level="SERIALIZABLE") as connection:
             with connection.begin():
@@ -101,10 +102,11 @@ def get_draft_rooms():
     """
     Retrieves all available drafts that have not yet been started. Acts as a list of drafts that are able to be joined.
     """
+
     try: 
         with db.engine.begin() as connection:
             draft_rooms = connection.execute(sqlalchemy.text("""
-                SELECT draft_id, draft_name, draft_type, draft_size, roster_size, draft_length
+                SELECT draft_id, draft_name, draft_type, draft_size, roster_size
                 FROM drafts
                 WHERE draft_status = 'pending'
                 """)).mappings().fetchall()
@@ -114,8 +116,7 @@ def get_draft_rooms():
                 "draft_name": room['draft_name'],
                 "draft_type": room['draft_type'],
                 "draft_size": room['draft_size'],
-                "roster_size": room['roster_size'],
-                "draft_length": room['draft_length']}
+                "roster_size": room['roster_size']}
                 for room in draft_rooms
             ]
     except exc.SQLAlchemyError:
@@ -129,6 +130,7 @@ def start_draft(draft_id: int):
     """
     Starts the drafting process for a specified draft. This process also randomly assigns the draft order for all users in the draft.
     """
+
     try: 
         with db.engine.connect().execution_options(isolation_level="SERIALIZABLE") as connection:
             with connection.begin():
@@ -176,6 +178,7 @@ def pause_draft(draft_id: int):
     """
     Changes the status of a specified draft from active to paused.
     """
+
     try: 
         with db.engine.connect().execution_options(isolation_level="SERIALIZABLE") as connection:
             with connection.begin():
@@ -198,6 +201,7 @@ def resume_draft(draft_id: int):
     """
     Changes the status of a specified draft from paused to active.
     """
+
     try:
         with db.engine.connect().execution_options(isolation_level="SERIALIZABLE") as connection:
             with connection.begin():
@@ -221,6 +225,7 @@ def end_draft(draft_id: int):
     """
     Ends the drafting process by changing the status of a specified draft from active to ended. An ended draft cannot be resumed.
     """
+
     try:
         with db.engine.connect().execution_options(isolation_level="SERIALIZABLE") as connection:
             with connection.begin():
@@ -243,16 +248,21 @@ def get_draft_picks(draft_id: int):
     """
     Returns a list of all selections made in the specified draft.
     """
+
     try:
         with db.engine.begin() as connection:
             get_draft = connection.execute(sqlalchemy.text("""
-                SELECT selections.when_selected, selections.player_id, stats.position, teams.team_name, teams.team_id
+                WITH recent_stats AS (
+                    SELECT player_id, position, ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY year DESC) AS n
+                    FROM stats
+                )
+                SELECT selections.when_selected, selections.player_id, recent_stats.position, teams.team_name, teams.team_id
                 FROM selections
                 JOIN teams ON selections.team_id = teams.team_id
                 JOIN players ON selections.player_id = players.player_id
-                JOIN stats ON players.player_id = stats.player_id
-                WHERE teams.draft_id = :draft_id
-                ORDER BY selections.when_selected ASC
+                JOIN recent_stats ON players.player_id = recent_stats.player_id
+                WHERE teams.draft_id = :draft_id and recent_stats.n = 1
+                ORDER BY selections.when_selected ASC;
             """), {'draft_id': draft_id}).mappings().fetchall()
             
             if not get_draft:

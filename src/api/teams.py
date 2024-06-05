@@ -20,6 +20,7 @@ def update_team_name(team_id: int, update_request: TeamUpdateRequest):
     """
     Updates the name of a team based on the team_id.
     """
+
     try:
         with db.engine.begin() as connection:
             update_team = connection.execute(sqlalchemy.text("""
@@ -30,6 +31,7 @@ def update_team_name(team_id: int, update_request: TeamUpdateRequest):
             raise HTTPException(status_code=404, detail="Team not found")
     except exc.SQLAlchemyError:
         raise HTTPException(status_code=400, detail=f"Could not change name for team with Team ID {team_id}. Please try again.")
+
     return {"message": "Team name updated successfully"}
 
 
@@ -38,6 +40,7 @@ def get_team(team_id: int):
     """
     Retrieves detailed information about a team's selections, including the draft positions, player positions, and names of players selected.
     """
+
     try:
         with db.engine.begin() as connection:
             team_info = connection.execute(sqlalchemy.text("""

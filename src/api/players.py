@@ -173,8 +173,6 @@ def search_players(
 
         search_result = {"previous": prev_token, "next": next_token, "results": json}
 
-    print(search_result)
-
     return search_result
 
 
@@ -183,6 +181,7 @@ def get_player_statistics(player_id: str):
     """
     Gets all player statistics for all seasons for the specified player.
     """
+
     try:
         with db.engine.begin() as connection:
             stats = connection.execute(sqlalchemy.text("""
@@ -228,8 +227,6 @@ def get_player_statistics(player_id: str):
     except exc.SQLAlchemyError:
         raise HTTPException(status_code=400, detail=f"Could not get statistics for player with Player ID {player_id}. Please try again.")
 
-    print(player_statistics)
-
     return {"player_id": player_id, "seasons": seasons}
 
 
@@ -238,6 +235,7 @@ def draft_player(player_id: str, request: DraftPlayerRequest):
     """
     Drafts a player to a team. The player must be available, it must be the team's pick, and the player pick must not violate minimum and maximum position restraints for a roster.
     """
+
     try:
         with db.engine.connect().execution_options(isolation_level="SERIALIZABLE") as connection:
             with connection.begin():
@@ -310,7 +308,7 @@ def draft_player(player_id: str, request: DraftPlayerRequest):
                     SELECT position, min FROM position_requirements
                     WHERE draft_id = :draft_id
                 """), {'draft_id': draft_info['draft_id']}).mappings().fetchall()
-                
+
                 for pos in positions:
                     count = connection.execute(sqlalchemy.text("""
                         SELECT COUNT(*) FROM selections
