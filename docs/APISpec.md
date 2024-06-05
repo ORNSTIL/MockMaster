@@ -231,3 +231,17 @@ Response:
 	}
 ]
 ~~~
+
+### Get Draft Order - /drafts/{draft_id}/order (GET)
+Returns the order of selections for all teams in the specified draft.
+
+Response:
+~~~
+[
+	{
+		"draft_position": "integer",
+        "team_id": "integer",
+        "team_name": "string"
+	}
+]
+~~~

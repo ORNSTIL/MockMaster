@@ -275,3 +275,34 @@ def get_draft_picks(draft_id: int):
 
     return picks
 
+
+@router.get("/{draft_id}/order")
+def get_draft_order(draft_id: int):
+    """
+    Returns the order of selections for all teams in the specified draft.
+    """
+
+    try:
+        with db.engine.begin() as connection:
+            draft_order = connection.execute(sqlalchemy.text("""
+                SELECT teams.draft_position, teams.team_id, teams.team_name
+                FROM teams
+                WHERE teams.draft_id = :draft_id
+                ORDER BY draft_position ASC;
+            """), {'draft_id': draft_id}).mappings().fetchall()
+            
+            if not draft_order:
+                raise HTTPException(status_code=404, detail="Draft not found or draft is empty")
+            if draft_order[0]['draft_position'] is None:
+                raise HTTPException(status_code=404, detail="Draft order has not yet been assigned")
+
+            order = [{
+                "draft_position": row['draft_position'],
+                "team_id": row['team_id'],
+                "team_name": row['team_name']
+            } for row in draft_order]
+    except exc.SQLAlchemyError:
+        raise HTTPException(status_code=400, detail=f"Could not get draft order for draft with Draft ID {draft_id}. Please try again.")
+
+    return order
+
