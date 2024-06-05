@@ -117,12 +117,16 @@ from
 -- NOTE: Once the initial data is imported, the materialized view never needs to be updated.
 create materialized view
   public.player_positions as
+with recent_stats as (
+    select player_id, position, ROW_NUMBER() over (partition by player_id order by year desc) as n
+    from stats
+)
 select distinct
-  stats.player_id,
-  stats."position",
+  recent_stats.player_id,
+  recent_stats."position",
   players.player_name
 from
-  stats
-  join players on players.player_id = stats.player_id
+  players
+  join recent_stats on players.player_id = recent_stats.player_id
 where
-  stats.year = 2023;
+  recent_stats.n = 1;
