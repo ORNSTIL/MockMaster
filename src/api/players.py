@@ -304,6 +304,23 @@ def draft_player(player_id: str, request: DraftPlayerRequest):
 
                 positions_needed = {}
                 total_needed_picks = 0
+
+                res = connection.execute(sqlalchemy.text("""
+                    WITH counter AS (
+                    SELECT position, COUNT(*) as num_selected
+                    FROM player_positions
+                    JOIN selections ON selections.player_id = player_positions.player_id
+                    WHERE selections.team_id = :team_id
+                    group by position
+                    )
+                    SELECT distinct counter.position, min, num_selected
+                    FROM position_requirements, counter 
+                    WHERE draft_id = :draft_id
+
+                """), {'team_id': request.team_id, 'draft_id': draft_info['draft_id']})
+
+
+
                 positions = connection.execute(sqlalchemy.text("""
                     SELECT position, min FROM position_requirements
                     WHERE draft_id = :draft_id
