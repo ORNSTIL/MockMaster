@@ -302,8 +302,6 @@ def draft_player(player_id: str, request: DraftPlayerRequest):
                 if remaining_picks <= 0:
                     raise HTTPException(status_code=409, detail="No remaining picks for this team")
 
-                positions_needed = {}
-                total_needed_picks = 0
 
                 res = connection.execute(sqlalchemy.text("""
                     WITH counter AS (
@@ -320,23 +318,29 @@ def draft_player(player_id: str, request: DraftPlayerRequest):
                 """), {'team_id': request.team_id, 'draft_id': draft_info['draft_id']})
 
 
-
-                positions = connection.execute(sqlalchemy.text("""
-                    SELECT position, min FROM position_requirements
-                    WHERE draft_id = :draft_id
-                """), {'draft_id': draft_info['draft_id']}).mappings().fetchall()
-
-                for pos in positions:
-                    count = connection.execute(sqlalchemy.text("""
-                        SELECT COUNT(*) 
-                        FROM player_positions
-                        JOIN selections ON selections.player_id = player_positions.player_id
-                        WHERE selections.team_id = :team_id AND player_positions.position = :position
-                    """), {'team_id': request.team_id, 'position': pos['position']}).scalar_one()
-        
-                    needed = max(0, pos['min'] - count)
-                    positions_needed[pos['position']] = needed
+                positions_needed = {}
+                total_needed_picks = 0
+                for position in res:
+                    needed = max(0, position.min - position.num_selected)
+                    positions_needed[position.position] = needed
                     total_needed_picks += needed
+
+                # positions = connection.execute(sqlalchemy.text("""
+                #     SELECT position, min FROM position_requirements
+                #     WHERE draft_id = :draft_id
+                # """), {'draft_id': draft_info['draft_id']}).mappings().fetchall()
+
+                # for pos in positions:
+                #     count = connection.execute(sqlalchemy.text("""
+                #         SELECT COUNT(*) 
+                #         FROM player_positions
+                #         JOIN selections ON selections.player_id = player_positions.player_id
+                #         WHERE selections.team_id = :team_id AND player_positions.position = :position
+                #     """), {'team_id': request.team_id, 'position': pos['position']}).scalar_one()
+        
+                    # needed = max(0, pos['min'] - count)
+                    # positions_needed[pos['position']] = needed
+                    # total_needed_picks += needed
 
                 current_count = connection.execute(sqlalchemy.text("""
                     SELECT COUNT(*) FROM selections

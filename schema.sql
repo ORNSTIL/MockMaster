@@ -123,4 +123,6 @@ select distinct
   players.player_name
 from
   stats
-  join players on players.player_id = stats.player_id;
+  join players on players.player_id = stats.player_id
+where
+  stats.year = 2023;
