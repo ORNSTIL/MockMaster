@@ -306,3 +306,41 @@ def get_draft_order(draft_id: int):
 
     return order
 
+
+@router.get("/{draft_id}/order")
+def get_current_draft_pick(draft_id: int):
+    """
+    Returns the team_id of the team in the given draft (via draft_id) who is currently able to draft a player.
+    """
+
+    try:
+        with db.engine.begin as connection:
+            previous_picks = connection.execute(sqlalchemy.text("""
+                SELECT COUNT(*) FROM selections
+                JOIN teams ON selections.team_id = teams.team_id
+                WHERE teams.draft_id = :draft_id
+            """), {'draft_id': draft_id}).scalar_one()
+
+            number_of_teams = connection.execute(sqlalchemy.text("""
+                SELECT COUNT(*) FROM teams
+                WHERE draft_id = :draft_id
+            """), {'draft_id': draft_id}).scalar_one()
+
+        current_pick = 0
+        last_round = previous_picks // number_of_teams
+        if last_round % 2 == 1:
+            current_pick = number_of_teams - (previous_picks % number_of_teams)
+        else:
+            current_pick = (previous_picks % number_of_teams) + 1
+
+        with db.engine.begin as connection:
+            team_id = connection.execute(sqlalchemy.text("""
+                SELECT team_id
+                FROM teams
+                WHERE draft_id = :draft_id and draft_position = :current_pick
+            """), {'draft_id': draft_id, 'current_pick': current_pick})
+             
+        return team_id
+
+    except exc.SQLAlchemyError:
+        raise HTTPException(status_code=400, detail=f"Could not get current draft pick for draft with Draft ID {draft_id}. Please try again.")
