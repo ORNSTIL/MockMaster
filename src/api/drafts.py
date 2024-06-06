@@ -326,14 +326,13 @@ def get_current_draft_pick(draft_id: int):
                 WHERE draft_id = :draft_id
             """), {'draft_id': draft_id}).scalar_one()
 
-        current_pick = 0
-        last_round = previous_picks // number_of_teams
-        if last_round % 2 == 1:
-            current_pick = number_of_teams - (previous_picks % number_of_teams)
-        else:
-            current_pick = (previous_picks % number_of_teams) + 1
+            current_pick = 0
+            last_round = previous_picks // number_of_teams
+            if last_round % 2 == 1:
+                current_pick = number_of_teams - (previous_picks % number_of_teams)
+            else:
+                current_pick = (previous_picks % number_of_teams) + 1
 
-        with db.engine.begin as connection:
             team_id = connection.execute(sqlalchemy.text("""
                 SELECT team_id
                 FROM teams
