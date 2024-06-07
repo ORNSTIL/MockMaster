@@ -245,3 +245,13 @@ Response:
 	}
 ]
 ~~~
+
+### Get Current Draft Pick - /drafts/{draft_id}/pick (GET)
+Returns the team_id of the team in the given draft (via draft_id) who is currently able to draft a player.
+
+Response:
+~~~
+{
+	"team_id": "integer"
+}
+~~~
