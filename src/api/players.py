@@ -345,5 +345,5 @@ def draft_player(player_id: str, request: DraftPlayerRequest):
     except exc.SQLAlchemyError:
         raise HTTPException(status_code=400, detail=f"Could not draft player with Player ID {player_id}. Please try again.")
 
-    return {"message": "Player drafted successfully"}
+    return {"success": True, "message": "Player drafted successfully"}
 

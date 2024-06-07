@@ -32,7 +32,7 @@ def update_team_name(team_id: int, update_request: TeamUpdateRequest):
     except exc.SQLAlchemyError:
         raise HTTPException(status_code=400, detail=f"Could not change name for team with Team ID {team_id}. Please try again.")
 
-    return {"message": "Team name updated successfully"}
+    return {"success": True, "message": "Team name updated successfully"}
 
 
 @router.get("/{team_id}")
